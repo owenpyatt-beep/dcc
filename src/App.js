@@ -1,228 +1,503 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
+import { T, DRAW_STATUS } from "./data/jobs";
+import { fc, Mono } from "./utils/format";
+import { useJobs } from "./context/JobsContext";
+import PortfolioView from "./components/PortfolioView";
+import DrawsView from "./components/DrawsView";
+import InvoicesView from "./components/InvoicesView";
+import AddJobModal from "./components/AddJobModal";
 
-const NAV_ITEMS = [
-  { key: 'portfolio', label: 'Portfolio', icon: PortfolioIcon },
-  { key: 'draws', label: 'Draws', icon: DrawsIcon },
-  { key: 'invoices', label: 'Invoices', icon: InvoicesIcon },
+function PortfolioIcon({ active }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <rect x="1" y="1" width="6" height="6" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
+      <rect x="9" y="1" width="6" height="6" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
+      <rect x="1" y="9" width="6" height="6" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
+      <rect x="9" y="9" width="6" height="6" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+function DrawsIcon({ active }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <rect x="1" y="1" width="14" height="4" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
+      <rect x="1" y="6" width="14" height="4" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
+      <rect x="1" y="11" width="14" height="4" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+function InvoicesIcon({ active }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <path d="M4 1h6l3 3v10.5a.5.5 0 01-.5.5h-8a.5.5 0 01-.5-.5v-13a.5.5 0 01.5-.5z" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
+      <path d="M10 1v3h3" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
+      <path d="M6 8h5M6 10.5h3" stroke={active ? T.gold : T.text3} strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+const NAV = [
+  { id: "portfolio", label: "Portfolio", Icon: PortfolioIcon },
+  { id: "draws", label: "Draws", Icon: DrawsIcon },
+  { id: "invoices", label: "Invoices", Icon: InvoicesIcon },
 ];
 
-function PortfolioIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2" y="3" width="7" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="11" y="3" width="7" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="2" y="11" width="7" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="11" y="11" width="7" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-function DrawsIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M3 10h14M3 5h14M3 15h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <circle cx="7" cy="5" r="1.5" fill="currentColor" />
-      <circle cx="13" cy="10" r="1.5" fill="currentColor" />
-      <circle cx="9" cy="15" r="1.5" fill="currentColor" />
-    </svg>
-  );
-}
-
-function InvoicesIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M5 2h7l4 4v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M12 2v4h4" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M7 10h6M7 13h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function PortfolioView() {
-  return (
-    <div style={styles.placeholder}>
-      <span style={styles.placeholderLabel}>Portfolio</span>
-      <span style={styles.placeholderSub}>Property overview coming soon</span>
-    </div>
-  );
-}
-
-function DrawsView() {
-  return (
-    <div style={styles.placeholder}>
-      <span style={styles.placeholderLabel}>Draws</span>
-      <span style={styles.placeholderSub}>Draw tracking coming soon</span>
-    </div>
-  );
-}
-
-function InvoicesView() {
-  return (
-    <div style={styles.placeholder}>
-      <span style={styles.placeholderLabel}>Invoices</span>
-      <span style={styles.placeholderSub}>Invoice management coming soon</span>
-    </div>
-  );
-}
-
-const VIEWS = {
-  portfolio: PortfolioView,
-  draws: DrawsView,
-  invoices: InvoicesView,
+const TITLES = {
+  portfolio: "Portfolio Overview",
+  draws: "Draw Management",
+  invoices: "Invoice Extraction",
 };
 
 export default function App() {
-  const [activeView, setActiveView] = useState('portfolio');
-  const ActiveComponent = VIEWS[activeView];
-  const activeLabel = NAV_ITEMS.find((n) => n.key === activeView).label;
+  const { jobs, addJob, addDraw } = useJobs();
+  const [view, setView] = useState("portfolio");
+  const [loaded, setLoaded] = useState(false);
+  const [showAddJob, setShowAddJob] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoaded(true), 60);
+    return () => clearTimeout(t);
+  }, []);
+
+  const handleSelectJob = (id) => {
+    setView("draws");
+  };
+
+  const handleNewDraw = () => {
+    if (jobs.length === 0) return;
+    const jobId = jobs[0].id;
+    addDraw(jobId);
+    setView("draws");
+  };
 
   return (
-    <div style={styles.layout}>
+    <div
+      style={{
+        fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+        background: T.bg0,
+        minHeight: "100vh",
+        color: T.text0,
+        display: "flex",
+        fontSize: 14,
+        opacity: loaded ? 1 : 0,
+        transition: "opacity 0.4s ease",
+      }}
+    >
+      {showAddJob && (
+        <AddJobModal
+          onClose={() => setShowAddJob(false)}
+          onSubmit={addJob}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside style={styles.sidebar}>
-        <div style={styles.brand}>
-          <span style={styles.brandText}>DCC</span>
-          <span style={styles.brandSub}>Command Center</span>
-        </div>
-        <nav style={styles.nav}>
-          {NAV_ITEMS.map((item) => {
-            const isActive = activeView === item.key;
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.key}
-                onClick={() => setActiveView(item.key)}
+      <aside
+        style={{
+          width: 220,
+          flexShrink: 0,
+          background: T.bg1,
+          borderRight: `1px solid ${T.border}`,
+          display: "flex",
+          flexDirection: "column",
+          position: "sticky",
+          top: 0,
+          height: "100vh",
+        }}
+      >
+        {/* Brand */}
+        <div
+          style={{
+            padding: "22px 20px 20px",
+            borderBottom: `1px solid ${T.border}`,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 9,
+                background: `linear-gradient(135deg, ${T.gold}, #9e7a3a)`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 14,
+                fontWeight: 900,
+                color: T.bg0,
+                flexShrink: 0,
+              }}
+            >
+              D
+            </div>
+            <div>
+              <div
                 style={{
-                  ...styles.navItem,
-                  ...(isActive ? styles.navItemActive : {}),
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: T.text0,
+                  lineHeight: 1.1,
                 }}
               >
-                <span style={{ color: isActive ? '#c9a96e' : '#6a6560' }}>
-                  <Icon />
+                Debrecht
+              </div>
+              <div
+                style={{
+                  fontSize: 9,
+                  color: T.text3,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  marginTop: 2,
+                }}
+              >
+                Command Center
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav style={{ padding: "12px 10px", flex: 1 }}>
+          <div
+            style={{
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: T.text3,
+              padding: "4px 10px 10px",
+            }}
+          >
+            Navigation
+          </div>
+          {NAV.map((n) => {
+            const isActive = view === n.id;
+            const Icon = n.Icon;
+            return (
+              <button
+                key={n.id}
+                onClick={() => setView(n.id)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  width: "100%",
+                  background: isActive ? T.bg3 : "transparent",
+                  border: `1px solid ${isActive ? T.border : "transparent"}`,
+                  color: isActive ? T.text0 : T.text2,
+                  padding: "9px 12px",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: isActive ? 600 : 400,
+                  marginBottom: 2,
+                  textAlign: "left",
+                  transition: "all 0.15s",
+                  fontFamily: "inherit",
+                }}
+              >
+                <span style={{ width: 18, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon active={isActive} />
                 </span>
-                <span>{item.label}</span>
+                {n.label}
+                {isActive && (
+                  <div
+                    style={{
+                      marginLeft: "auto",
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: T.gold,
+                    }}
+                  />
+                )}
               </button>
             );
           })}
+
+          {/* Projects */}
+          <div
+            style={{
+              marginTop: 24,
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: T.text3,
+              padding: "4px 10px 10px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span>Projects</span>
+            <button
+              onClick={() => setShowAddJob(true)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: T.gold,
+                fontSize: 14,
+                cursor: "pointer",
+                padding: "0 2px",
+                lineHeight: 1,
+              }}
+              title="Add project"
+            >
+              +
+            </button>
+          </div>
+          {jobs.map((j) => {
+            const currentDraw = j.draws[j.draws.length - 1];
+            return (
+              <div
+                key={j.id}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  marginBottom: 2,
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = T.bg3)
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "transparent")
+                }
+                onClick={() => handleSelectJob(j.id)}
+              >
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: T.text1,
+                  }}
+                >
+                  {j.shortName}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    marginTop: 3,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: DRAW_STATUS[currentDraw.status].color,
+                    }}
+                  />
+                  <span style={{ fontSize: 10, color: T.text3 }}>
+                    Draw #{currentDraw.num} &middot;{" "}
+                    {DRAW_STATUS[currentDraw.status].label}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </nav>
+
+        {/* User section */}
+        <div
+          style={{
+            padding: "16px 20px",
+            borderTop: `1px solid ${T.border}`,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 7,
+                background: T.goldDim,
+                border: `1px solid ${T.goldBorder}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 11,
+                fontWeight: 700,
+                color: T.gold,
+              }}
+            >
+              LD
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: T.text1,
+                }}
+              >
+                Lorenzo D.
+              </div>
+              <div style={{ fontSize: 10, color: T.text3 }}>
+                Principal
+              </div>
+            </div>
+            <div
+              style={{
+                marginLeft: "auto",
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: T.green,
+                boxShadow: `0 0 6px ${T.green}`,
+              }}
+            />
+          </div>
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 10,
+              color: T.text3,
+              display: "flex",
+              justifyContent: "space-between",
+            }}
+          >
+            <span>AO Solutions</span>
+            <span style={{ color: T.green }}>
+              <svg
+                width="6"
+                height="6"
+                viewBox="0 0 6 6"
+                fill={T.green}
+                style={{ marginRight: 4, verticalAlign: "middle" }}
+              >
+                <circle cx="3" cy="3" r="3" />
+              </svg>
+              Retainer Active
+            </span>
+          </div>
+        </div>
       </aside>
 
-      {/* Main content */}
-      <main style={styles.main}>
-        <header style={styles.header}>
-          <h1 style={styles.headerTitle}>{activeLabel}</h1>
+      {/* Main area */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+        }}
+      >
+        {/* Header */}
+        <header
+          style={{
+            height: 58,
+            borderBottom: `1px solid ${T.border}`,
+            background: T.bg1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 32px",
+            flexShrink: 0,
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontFamily: "'Playfair Display', serif",
+                fontSize: 17,
+                fontWeight: 700,
+                color: T.text0,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {TITLES[view]}
+            </div>
+            <div style={{ fontSize: 10, color: T.text3, marginTop: 1 }}>
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </div>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+            }}
+          >
+            <div
+              style={{
+                background: T.bg2,
+                border: `1px solid ${T.border}`,
+                borderRadius: 8,
+                padding: "6px 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 11, color: T.text2 }}>
+                Retainer start:
+              </span>
+              <Mono style={{ fontSize: 11, color: T.gold }}>
+                Apr 1, 2026
+              </Mono>
+            </div>
+            <button
+              onClick={() => setShowAddJob(true)}
+              style={{
+                background: T.goldDim,
+                border: `1px solid ${T.goldBorder}`,
+                borderRadius: 8,
+                color: T.gold,
+                fontSize: 12,
+                fontWeight: 600,
+                padding: "7px 16px",
+                cursor: "pointer",
+                letterSpacing: "0.04em",
+                fontFamily: "inherit",
+              }}
+            >
+              + New Project
+            </button>
+          </div>
         </header>
-        <div style={styles.content}>
-          <ActiveComponent />
-        </div>
-      </main>
+
+        {/* Content */}
+        <main
+          style={{
+            flex: 1,
+            padding: "28px 32px",
+            overflowY: "auto",
+          }}
+        >
+          {view === "portfolio" && (
+            <PortfolioView onSelectJob={handleSelectJob} />
+          )}
+          {view === "draws" && <DrawsView />}
+          {view === "invoices" && <InvoicesView />}
+        </main>
+      </div>
     </div>
   );
 }
-
-const styles = {
-  layout: {
-    display: 'flex',
-    height: '100vh',
-    width: '100vw',
-    overflow: 'hidden',
-  },
-  sidebar: {
-    width: 240,
-    minWidth: 240,
-    background: '#0e0f10',
-    borderRight: '1px solid #1e1f21',
-    display: 'flex',
-    flexDirection: 'column',
-    padding: '24px 0',
-  },
-  brand: {
-    display: 'flex',
-    flexDirection: 'column',
-    padding: '0 24px 32px',
-    borderBottom: '1px solid #1e1f21',
-    marginBottom: 24,
-  },
-  brandText: {
-    fontFamily: "'Playfair Display', serif",
-    fontSize: 28,
-    fontWeight: 700,
-    color: '#c9a96e',
-    letterSpacing: '0.04em',
-  },
-  brandSub: {
-    fontFamily: "'DM Sans', sans-serif",
-    fontSize: 12,
-    color: '#6a6560',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    marginTop: 2,
-  },
-  nav: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    padding: '0 12px',
-  },
-  navItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    padding: '10px 12px',
-    border: 'none',
-    background: 'transparent',
-    color: '#a8a39a',
-    fontFamily: "'DM Sans', sans-serif",
-    fontSize: 14,
-    fontWeight: 500,
-    cursor: 'pointer',
-    borderRadius: 8,
-    transition: 'background 0.15s, color 0.15s',
-    textAlign: 'left',
-    width: '100%',
-  },
-  navItemActive: {
-    background: '#1a1b1d',
-    color: '#f2ede4',
-  },
-  main: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-  },
-  header: {
-    padding: '24px 32px 20px',
-    borderBottom: '1px solid #1e1f21',
-  },
-  headerTitle: {
-    fontFamily: "'Playfair Display', serif",
-    fontSize: 24,
-    fontWeight: 600,
-    color: '#f2ede4',
-    margin: 0,
-  },
-  content: {
-    flex: 1,
-    padding: 32,
-    overflow: 'auto',
-  },
-  placeholder: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    gap: 8,
-  },
-  placeholderLabel: {
-    fontFamily: "'Playfair Display', serif",
-    fontSize: 20,
-    color: '#a8a39a',
-  },
-  placeholderSub: {
-    fontFamily: "'DM Sans', sans-serif",
-    fontSize: 14,
-    color: '#6a6560',
-  },
-};
