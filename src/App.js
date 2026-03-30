@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { T, DRAW_STATUS } from "./data/jobs";
-import { fc, Mono } from "./utils/format";
+import { Mono, pct } from "./utils/format";
 import { useJobs } from "./context/JobsContext";
 import PortfolioView from "./components/PortfolioView";
+import PropertiesView from "./components/PropertiesView";
 import DrawsView from "./components/DrawsView";
 import InvoicesView from "./components/InvoicesView";
 import AddJobModal from "./components/AddJobModal";
@@ -14,6 +15,15 @@ function PortfolioIcon({ active }) {
       <rect x="9" y="1" width="6" height="6" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
       <rect x="1" y="9" width="6" height="6" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
       <rect x="9" y="9" width="6" height="6" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+function PropertiesIcon({ active }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+      <path d="M2 14V6l6-4 6 4v8" stroke={active ? T.gold : T.text3} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="5.5" y="9" width="5" height="5" rx="0.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
     </svg>
   );
 }
@@ -40,18 +50,20 @@ function InvoicesIcon({ active }) {
 
 const NAV = [
   { id: "portfolio", label: "Portfolio", Icon: PortfolioIcon },
+  { id: "properties", label: "Properties", Icon: PropertiesIcon },
   { id: "draws", label: "Draws", Icon: DrawsIcon },
   { id: "invoices", label: "Invoices", Icon: InvoicesIcon },
 ];
 
 const TITLES = {
   portfolio: "Portfolio Overview",
+  properties: "Managed Properties",
   draws: "Draw Management",
   invoices: "Invoice Extraction",
 };
 
 export default function App() {
-  const { jobs, addJob, addDraw } = useJobs();
+  const { properties, builds, managed, addProperty } = useJobs();
   const [view, setView] = useState("portfolio");
   const [loaded, setLoaded] = useState(false);
   const [showAddJob, setShowAddJob] = useState(false);
@@ -61,14 +73,11 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
-  const handleSelectJob = (id) => {
-    setView("draws");
+  const handleSelectManaged = (id) => {
+    setView("properties");
   };
 
-  const handleNewDraw = () => {
-    if (jobs.length === 0) return;
-    const jobId = jobs[0].id;
-    addDraw(jobId);
+  const handleSelectBuild = (id) => {
     setView("draws");
   };
 
@@ -88,7 +97,7 @@ export default function App() {
       {showAddJob && (
         <AddJobModal
           onClose={() => setShowAddJob(false)}
-          onSubmit={addJob}
+          onSubmit={addProperty}
         />
       )}
 
@@ -113,13 +122,7 @@ export default function App() {
             borderBottom: `1px solid ${T.border}`,
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div
               style={{
                 width: 34,
@@ -165,7 +168,7 @@ export default function App() {
         </div>
 
         {/* Navigation */}
-        <nav style={{ padding: "12px 10px", flex: 1 }}>
+        <nav style={{ padding: "12px 10px", flex: 1, overflowY: "auto" }}>
           <div
             style={{
               fontSize: 9,
@@ -223,10 +226,55 @@ export default function App() {
             );
           })}
 
-          {/* Projects */}
+          {/* Managed Properties */}
+          {managed.length > 0 && (
+            <>
+              <div
+                style={{
+                  marginTop: 24,
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  color: T.text3,
+                  padding: "4px 10px 10px",
+                }}
+              >
+                Managed
+              </div>
+              {managed.map((p) => {
+                const occ = p.totalUnits > 0 ? pct(p.occupiedUnits, p.totalUnits) : 0;
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      marginBottom: 2,
+                      cursor: "pointer",
+                      transition: "background 0.15s",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = T.bg3)}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    onClick={() => handleSelectManaged(p.id)}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 600, color: T.text1 }}>{p.shortName}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
+                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: occ >= 90 ? T.green : occ >= 75 ? T.amber : T.red }} />
+                      <span style={{ fontSize: 10, color: T.text3 }}>
+                        {p.occupiedUnits}/{p.totalUnits} units &middot; {occ}% occ
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+
+          {/* Active Builds */}
           <div
             style={{
-              marginTop: 24,
+              marginTop: managed.length > 0 ? 16 : 24,
               fontSize: 9,
               fontWeight: 700,
               letterSpacing: "0.12em",
@@ -238,7 +286,7 @@ export default function App() {
               alignItems: "center",
             }}
           >
-            <span>Projects</span>
+            <span>Active Builds</span>
             <button
               onClick={() => setShowAddJob(true)}
               style={{
@@ -250,12 +298,12 @@ export default function App() {
                 padding: "0 2px",
                 lineHeight: 1,
               }}
-              title="Add project"
+              title="Add property"
             >
               +
             </button>
           </div>
-          {jobs.map((j) => {
+          {builds.map((j) => {
             const currentDraw = j.draws[j.draws.length - 1];
             return (
               <div
@@ -267,47 +315,23 @@ export default function App() {
                   cursor: "pointer",
                   transition: "background 0.15s",
                 }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = T.bg3)
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
-                onClick={() => handleSelectJob(j.id)}
+                onMouseEnter={(e) => (e.currentTarget.style.background = T.bg3)}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                onClick={() => handleSelectBuild(j.id)}
               >
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: T.text1,
-                  }}
-                >
-                  {j.shortName}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    marginTop: 3,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 5,
-                      height: 5,
-                      borderRadius: "50%",
-                      background: DRAW_STATUS[currentDraw.status].color,
-                    }}
-                  />
+                <div style={{ fontSize: 12, fontWeight: 600, color: T.text1 }}>{j.shortName}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
+                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: DRAW_STATUS[currentDraw.status].color }} />
                   <span style={{ fontSize: 10, color: T.text3 }}>
-                    Draw #{currentDraw.num} &middot;{" "}
-                    {DRAW_STATUS[currentDraw.status].label}
+                    Draw #{currentDraw.num} &middot; {DRAW_STATUS[currentDraw.status].label}
                   </span>
                 </div>
               </div>
             );
           })}
+          {builds.length === 0 && (
+            <div style={{ padding: "8px 12px", fontSize: 11, color: T.text3 }}>No active builds</div>
+          )}
         </nav>
 
         {/* User section */}
@@ -317,13 +341,7 @@ export default function App() {
             borderTop: `1px solid ${T.border}`,
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div
               style={{
                 width: 28,
@@ -342,18 +360,8 @@ export default function App() {
               LD
             </div>
             <div>
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: T.text1,
-                }}
-              >
-                Lorenzo D.
-              </div>
-              <div style={{ fontSize: 10, color: T.text3 }}>
-                Principal
-              </div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: T.text1 }}>Lorenzo D.</div>
+              <div style={{ fontSize: 10, color: T.text3 }}>Principal</div>
             </div>
             <div
               style={{
@@ -377,13 +385,7 @@ export default function App() {
           >
             <span>AO Solutions</span>
             <span style={{ color: T.green }}>
-              <svg
-                width="6"
-                height="6"
-                viewBox="0 0 6 6"
-                fill={T.green}
-                style={{ marginRight: 4, verticalAlign: "middle" }}
-              >
+              <svg width="6" height="6" viewBox="0 0 6 6" fill={T.green} style={{ marginRight: 4, verticalAlign: "middle" }}>
                 <circle cx="3" cy="3" r="3" />
               </svg>
               Retainer Active
@@ -393,14 +395,7 @@ export default function App() {
       </aside>
 
       {/* Main area */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
-        }}
-      >
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         {/* Header */}
         <header
           style={{
@@ -438,13 +433,7 @@ export default function App() {
               })}
             </div>
           </div>
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              alignItems: "center",
-            }}
-          >
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <div
               style={{
                 background: T.bg2,
@@ -456,12 +445,8 @@ export default function App() {
                 gap: 8,
               }}
             >
-              <span style={{ fontSize: 11, color: T.text2 }}>
-                Retainer start:
-              </span>
-              <Mono style={{ fontSize: 11, color: T.gold }}>
-                Apr 1, 2026
-              </Mono>
+              <span style={{ fontSize: 11, color: T.text2 }}>Retainer start:</span>
+              <Mono style={{ fontSize: 11, color: T.gold }}>Apr 1, 2026</Mono>
             </div>
             <button
               onClick={() => setShowAddJob(true)}
@@ -478,22 +463,15 @@ export default function App() {
                 fontFamily: "inherit",
               }}
             >
-              + New Project
+              + Add Property
             </button>
           </div>
         </header>
 
         {/* Content */}
-        <main
-          style={{
-            flex: 1,
-            padding: "28px 32px",
-            overflowY: "auto",
-          }}
-        >
-          {view === "portfolio" && (
-            <PortfolioView onSelectJob={handleSelectJob} />
-          )}
+        <main style={{ flex: 1, padding: "28px 32px", overflowY: "auto" }}>
+          {view === "portfolio" && <PortfolioView onSelectManaged={handleSelectManaged} onSelectBuild={handleSelectBuild} />}
+          {view === "properties" && <PropertiesView />}
           {view === "draws" && <DrawsView />}
           {view === "invoices" && <InvoicesView />}
         </main>

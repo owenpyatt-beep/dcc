@@ -4,9 +4,9 @@ import { fc, Mono, StatusDot } from "../utils/format";
 import { useJobs } from "../context/JobsContext";
 
 export default function DrawsView() {
-  const { jobs, addDraw } = useJobs();
-  const [selectedJob, setSelectedJob] = useState(jobs[0]?.id);
-  const job = jobs.find((j) => j.id === selectedJob) || jobs[0];
+  const { builds, addDraw } = useJobs();
+  const [selectedJob, setSelectedJob] = useState(builds[0]?.id);
+  const job = builds.find((j) => j.id === selectedJob) || builds[0];
   const stages = ["compiling", "in_review", "submitted", "funded"];
   const stageLabels = {
     compiling: "Compiling",
@@ -32,7 +32,7 @@ export default function DrawsView() {
           alignItems: "center",
         }}
       >
-        {jobs.map((j) => (
+        {builds.map((j) => (
           <button
             key={j.id}
             onClick={() => setSelectedJob(j.id)}

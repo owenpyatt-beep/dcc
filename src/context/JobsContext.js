@@ -1,70 +1,128 @@
 import React, { createContext, useContext, useReducer, useEffect } from "react";
-import { SEED_JOBS } from "../data/jobs";
+import { SEED_PROPERTIES } from "../data/jobs";
 
-const STORAGE_KEY = "debrecht_jobs";
+const STORAGE_KEY = "debrecht_properties";
 
 const JobsContext = createContext(null);
 
-function nextJobId(jobs) {
-  const nums = jobs.map((j) => parseInt(j.id.replace("J-", ""), 10) || 0);
-  return `J-${String(Math.max(0, ...nums) + 1).padStart(4, "0")}`;
+function nextPropertyId(properties) {
+  const nums = properties.map((p) => parseInt(p.id.replace("P-", ""), 10) || 0);
+  return `P-${String(Math.max(0, ...nums) + 1).padStart(4, "0")}`;
 }
 
-function recomputeJob(job) {
-  const drawnToDate = job.draws
+function recomputeBuild(prop) {
+  if (prop.category !== "build") return prop;
+  const drawnToDate = prop.draws
     .filter((d) => d.status === "funded")
     .reduce((s, d) => s + d.amount, 0);
-  return { ...job, drawnToDate };
+  return { ...prop, drawnToDate };
 }
 
-function jobsReducer(state, action) {
+function propertiesReducer(state, action) {
   switch (action.type) {
-    case "ADD_JOB": {
-      const { name, address, type, loanAmount, startDate, estCompletion } =
-        action.payload;
-      const id = nextJobId(state);
-      const shortName = name.split(/\s+/)[0];
-      const newJob = {
-        id,
-        name,
-        shortName,
-        address,
-        type,
-        units: 0,
-        loanAmount,
-        drawnToDate: 0,
-        completion: 0,
-        foreman: "",
-        pm: "",
-        startDate,
-        estCompletion,
-        draws: [
+    case "ADD_PROPERTY": {
+      const p = action.payload;
+      const id = nextPropertyId(state);
+      const shortName = p.shortName || p.name.split(/\s+/)[0];
+
+      if (p.category === "managed") {
+        return [
+          ...state,
           {
-            num: 1,
-            status: "compiling",
-            amount: 0,
-            invoices: 0,
-            submitted: null,
-            funded: null,
-            accuracy: null,
-            extractedInvoices: null,
+            id,
+            category: "managed",
+            name: p.name,
+            shortName,
+            address: p.address,
+            type: p.type || "Multi-Family",
+            totalUnits: parseInt(p.totalUnits, 10) || 0,
+            occupiedUnits: 0,
+            leasedUnits: 0,
+            delinquent30: 0,
+            delinquent60: 0,
+            delinquentAmount30: 0,
+            delinquentAmount60: 0,
+            monthlyIncome: 0,
+            collectedIncome: 0,
           },
-        ],
-        tradeBreakdown: [],
-        cashflow: [],
-      };
-      return [...state, newJob];
+        ];
+      }
+
+      // Build property
+      return [
+        ...state,
+        {
+          id,
+          category: "build",
+          name: p.name,
+          shortName,
+          address: p.address,
+          type: p.type || "Multi-Family",
+          totalProjectCost: parseFloat(p.totalProjectCost) || 0,
+          loanAmount: parseFloat(p.loanAmount) || 0,
+          equityRequired: parseFloat(p.equityRequired) || 0,
+          equityIn: 0,
+          drawnToDate: 0,
+          completion: 0,
+          foreman: "",
+          pm: "",
+          startDate: p.startDate || "",
+          estCompletion: p.estCompletion || "",
+          draws: [
+            {
+              num: 1,
+              status: "compiling",
+              amount: 0,
+              invoices: 0,
+              submitted: null,
+              funded: null,
+              accuracy: null,
+              extractedInvoices: null,
+            },
+          ],
+          tradeBreakdown: [],
+          cashflow: [],
+          hasLeasing: false,
+          totalUnits: 0,
+          totalBuildings: 0,
+          buildingsUnderCO: 0,
+          unitsReadyToLease: 0,
+          occupiedUnits: 0,
+          leasedUnits: 0,
+        },
+      ];
+    }
+
+    case "UPDATE_PROPERTY": {
+      const { id, updates } = action.payload;
+      return state.map((p) => {
+        if (p.id !== id) return p;
+        const numFields = [
+          "totalUnits", "occupiedUnits", "leasedUnits",
+          "delinquent30", "delinquent60",
+          "delinquentAmount30", "delinquentAmount60",
+          "monthlyIncome", "collectedIncome",
+          "totalProjectCost", "loanAmount", "equityRequired", "equityIn",
+          "completion", "totalBuildings", "buildingsUnderCO",
+          "unitsReadyToLease",
+        ];
+        const cleaned = { ...updates };
+        numFields.forEach((f) => {
+          if (f in cleaned) cleaned[f] = parseFloat(cleaned[f]) || 0;
+        });
+        return { ...p, ...cleaned };
+      });
     }
 
     case "ADD_DRAW": {
       const { jobId } = action.payload;
-      return state.map((j) => {
-        if (j.id !== jobId) return j;
-        const maxNum = j.draws.reduce((m, d) => Math.max(m, d.num), 0);
+      return state.map((p) => {
+        if (p.id !== jobId || p.category !== "build") return p;
+        const maxNum = p.draws.reduce((m, d) => Math.max(m, d.num), 0);
         return {
-          ...j,
+          ...p,
           draws: [
-            ...j.draws,
+            ...p.draws,
             {
               num: maxNum + 1,
               status: "compiling",
@@ -82,9 +140,9 @@ function jobsReducer(state, action) {
 
     case "COMMIT_EXTRACTION": {
       const { jobId, drawNum, invoices } = action.payload;
-      return state.map((j) => {
-        if (j.id !== jobId) return j;
-        const draws = j.draws.map((d) => {
+      return state.map((p) => {
+        if (p.id !== jobId) return p;
+        const draws = p.draws.map((d) => {
           if (d.num !== drawNum) return d;
           const amount = invoices.reduce((s, inv) => s + inv.amountDue, 0);
           return {
@@ -94,9 +152,7 @@ function jobsReducer(state, action) {
             invoices: invoices.length,
           };
         });
-        const allInvoices = draws.flatMap(
-          (d) => d.extractedInvoices || []
-        );
+        const allInvoices = draws.flatMap((d) => d.extractedInvoices || []);
         const tradeMap = {};
         allInvoices.forEach((inv) => {
           const cat = inv.tradeCategory || "Other";
@@ -106,20 +162,19 @@ function jobsReducer(state, action) {
           .map(([trade, amount]) => ({ trade, amount }))
           .sort((a, b) => b.amount - a.amount);
         const updated = {
-          ...j,
+          ...p,
           draws,
-          tradeBreakdown:
-            tradeBreakdown.length > 0 ? tradeBreakdown : j.tradeBreakdown,
+          tradeBreakdown: tradeBreakdown.length > 0 ? tradeBreakdown : p.tradeBreakdown,
         };
-        return recomputeJob(updated);
+        return recomputeBuild(updated);
       });
     }
 
     case "UPDATE_DRAW_STATUS": {
       const { jobId, drawNum, status, submitted, funded } = action.payload;
-      return state.map((j) => {
-        if (j.id !== jobId) return j;
-        const draws = j.draws.map((d) => {
+      return state.map((p) => {
+        if (p.id !== jobId) return p;
+        const draws = p.draws.map((d) => {
           if (d.num !== drawNum) return d;
           return {
             ...d,
@@ -128,7 +183,7 @@ function jobsReducer(state, action) {
             funded: funded !== undefined ? funded : d.funded,
           };
         });
-        return recomputeJob({ ...j, draws });
+        return recomputeBuild({ ...p, draws });
       });
     }
 
@@ -145,30 +200,31 @@ function loadInitialState() {
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch (_) {}
-  return SEED_JOBS;
+  return SEED_PROPERTIES;
 }
 
 export function JobsProvider({ children }) {
-  const [jobs, dispatch] = useReducer(jobsReducer, null, loadInitialState);
+  const [properties, dispatch] = useReducer(propertiesReducer, null, loadInitialState);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
-  }, [jobs]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(properties));
+  }, [properties]);
+
+  const builds = properties.filter((p) => p.category === "build");
+  const managed = properties.filter((p) => p.category === "managed");
 
   const ctx = {
-    jobs,
-    addJob: (payload) => dispatch({ type: "ADD_JOB", payload }),
+    properties,
+    builds,
+    managed,
+    addProperty: (payload) => dispatch({ type: "ADD_PROPERTY", payload }),
+    updateProperty: (id, updates) =>
+      dispatch({ type: "UPDATE_PROPERTY", payload: { id, updates } }),
     addDraw: (jobId) => dispatch({ type: "ADD_DRAW", payload: { jobId } }),
     commitExtraction: (jobId, drawNum, invoices) =>
-      dispatch({
-        type: "COMMIT_EXTRACTION",
-        payload: { jobId, drawNum, invoices },
-      }),
+      dispatch({ type: "COMMIT_EXTRACTION", payload: { jobId, drawNum, invoices } }),
     updateDrawStatus: (jobId, drawNum, status, extra = {}) =>
-      dispatch({
-        type: "UPDATE_DRAW_STATUS",
-        payload: { jobId, drawNum, status, ...extra },
-      }),
+      dispatch({ type: "UPDATE_DRAW_STATUS", payload: { jobId, drawNum, status, ...extra } }),
   };
 
   return <JobsContext.Provider value={ctx}>{children}</JobsContext.Provider>;

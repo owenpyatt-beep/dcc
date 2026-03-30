@@ -9,9 +9,9 @@ import { mapTrade, getTradeCategories } from "../utils/tradeMap";
 import { useJobs } from "../context/JobsContext";
 
 export default function InvoicesView() {
-  const { jobs, commitExtraction } = useJobs();
-  const [selectedJob, setSelectedJob] = useState(jobs[0]?.id);
-  const job = jobs.find((j) => j.id === selectedJob) || jobs[0];
+  const { builds, commitExtraction } = useJobs();
+  const [selectedJob, setSelectedJob] = useState(builds[0]?.id);
+  const job = builds.find((j) => j.id === selectedJob) || builds[0];
   const currentDraw = job?.draws[job.draws.length - 1];
 
   const fileRef = useRef(null);
@@ -160,7 +160,7 @@ export default function InvoicesView() {
           width: "fit-content",
         }}
       >
-        {jobs.map((j) => (
+        {builds.map((j) => (
           <button
             key={j.id}
             onClick={() => {
