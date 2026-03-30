@@ -1,8 +1,10 @@
-// Syncs property data from Appfolio Reporting API v2
+// Syncs property data from Appfolio Stack API
 // GET /api/appfolio/sync
 //
-// Fetches rent roll and aged receivables, maps to DCC property model.
-// Rate limit: 7 requests per 15 seconds — this endpoint makes 2 calls.
+// Fetches Properties, Units, Tenants, Delinquent Charges, and Recurring Charges
+// then maps to DCC managed property model.
+//
+// Rate limit: 7 requests per 15 seconds (pagination requests exempt)
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -16,119 +18,179 @@ export default async function handler(req, res) {
   }
 
   const auth = Buffer.from(`${APPFOLIO_CLIENT_ID}:${APPFOLIO_CLIENT_SECRET}`).toString("base64");
-  const baseUrl = `https://${APPFOLIO_DATABASE}.appfolio.com/api/v2/reports`;
+  const base = `https://${APPFOLIO_DATABASE}.appfolio.com/api/v1`;
   const headers = {
     Authorization: `Basic ${auth}`,
     "Content-Type": "application/json",
   };
 
   try {
-    // Fetch rent roll and aged receivables in parallel
-    const [rentRollRes, delinquencyRes] = await Promise.all([
-      fetchAllPages(`${baseUrl}/rent_roll.json`, headers),
-      fetchAllPages(`${baseUrl}/aged_receivables_summary.json`, headers),
-    ]);
+    // ── 1. Fetch all properties ────────────────────────
+    const properties = await fetchAllPages(`${base}/properties.json`, headers);
 
-    // Group rent roll by property
-    const propertyMap = {};
+    // ── 2. Fetch all units ─────────────────────────────
+    const units = await fetchAllPages(`${base}/units.json`, headers);
 
-    for (const row of rentRollRes) {
-      const propName = row.property_name || row.property || "Unknown";
-      if (!propertyMap[propName]) {
-        propertyMap[propName] = {
-          name: propName,
-          address: row.property_address || "",
-          totalUnits: 0,
-          occupiedUnits: 0,
-          leasedUnits: 0,
-          monthlyIncome: 0,
-          units: [],
-        };
-      }
-      const prop = propertyMap[propName];
-      prop.totalUnits++;
+    // ── 3. Fetch all tenants ───────────────────────────
+    const tenants = await fetchAllPages(`${base}/tenants.json`, headers);
 
-      const isOccupied = !!(row.tenant_name || row.tenant || row.resident);
-      const isLeased = !!(row.lease_start || row.lease_from || row.move_in);
-      if (isOccupied) prop.occupiedUnits++;
-      if (isLeased) prop.leasedUnits++;
+    // ── 4. Fetch delinquent charges ────────────────────
+    const delinquentCharges = await fetchAllPages(`${base}/delinquent_charges.json`, headers);
 
-      const rent = parseFloat(row.rent || row.market_rent || row.charge_amount || 0);
-      if (isOccupied && rent > 0) prop.monthlyIncome += rent;
+    // ── 5. Fetch recurring charges (for income) ────────
+    const recurringCharges = await fetchAllPages(`${base}/recurring_charges.json`, headers);
 
-      prop.units.push({
-        unit: row.unit || row.unit_name || row.unit_number || "",
-        tenant: row.tenant_name || row.tenant || row.resident || null,
-        rent,
-        leaseStart: row.lease_start || row.lease_from || null,
-        leaseEnd: row.lease_end || row.lease_to || null,
-        moveIn: row.move_in || null,
-        moveOut: row.move_out || null,
-        status: isOccupied ? "occupied" : "vacant",
+    // ── Map to DCC property model ──────────────────────
+    const now = new Date();
+    const result = properties.map((prop) => {
+      const propId = prop.id || prop.Id;
+      const propName = prop.name || prop.Name || "Unknown";
+
+      // Units for this property
+      const propUnits = units.filter(
+        (u) => (u.property_id || u.PropertyId) === propId
+      );
+      const totalUnits = propUnits.length;
+
+      // Tenants for this property
+      const propTenants = tenants.filter(
+        (t) => (t.property_id || t.PropertyId) === propId
+      );
+
+      // Active tenants = occupied units
+      const activeTenants = propTenants.filter((t) => {
+        const status = (t.status || t.Status || "").toLowerCase();
+        const moveOut = t.move_out_on || t.MoveOutOn;
+        // Active if status is current/active and no past move-out date
+        if (status === "past" || status === "inactive" || status === "hidden") return false;
+        if (moveOut && new Date(moveOut) < now) return false;
+        return true;
       });
-    }
+      const occupiedUnits = activeTenants.length;
 
-    // Process delinquency by property
-    const delinquencyByProp = {};
+      // Leased units = tenants with active lease
+      const leasedTenants = activeTenants.filter((t) => {
+        const leaseStart = t.lease_start_date || t.LeaseStartDate;
+        const leaseEnd = t.lease_end_date || t.LeaseEndDate;
+        if (!leaseStart) return false;
+        if (leaseEnd && new Date(leaseEnd) < now) return false;
+        return true;
+      });
+      const leasedUnits = leasedTenants.length;
 
-    for (const row of delinquencyRes) {
-      const propName = row.property_name || row.property || "Unknown";
-      if (!delinquencyByProp[propName]) {
-        delinquencyByProp[propName] = {
-          delinquent30: 0,
-          delinquent60: 0,
-          delinquentAmount30: 0,
-          delinquentAmount60: 0,
-        };
+      // Occupancy IDs for this property's active tenants
+      const occupancyIds = new Set(
+        activeTenants.map((t) => t.occupancy_id || t.OccupancyId).filter(Boolean)
+      );
+
+      // Delinquent charges for this property's occupancies
+      const propDelinquent = delinquentCharges.filter((dc) => {
+        const occId = dc.occupancy_id || dc.OccupancyId;
+        return occupancyIds.has(occId);
+      });
+
+      // Categorize delinquency by age (30+ and 60+ days)
+      let delinquent30 = 0;
+      let delinquent60 = 0;
+      let delinquentAmount30 = 0;
+      let delinquentAmount60 = 0;
+      const delinquentOccupancies30 = new Set();
+      const delinquentOccupancies60 = new Set();
+
+      for (const dc of propDelinquent) {
+        const chargedOn = dc.charged_on || dc.ChargedOn;
+        const amount = parseFloat(dc.amount_due || dc.AmountDue || 0);
+        const daysLate = chargedOn
+          ? Math.floor((now - new Date(chargedOn)) / (1000 * 60 * 60 * 24))
+          : 0;
+        const occId = dc.occupancy_id || dc.OccupancyId;
+
+        if (daysLate >= 60) {
+          delinquentAmount60 += amount;
+          if (occId) delinquentOccupancies60.add(occId);
+        } else if (daysLate >= 30) {
+          delinquentAmount30 += amount;
+          if (occId) delinquentOccupancies30.add(occId);
+        }
       }
-      const d = delinquencyByProp[propName];
-      const totalDue = parseFloat(row.total_due || row.balance || row.amount_due || 0);
-      const daysLate = parseInt(row.days_late || row.days_outstanding || 0, 10);
+      delinquent30 = delinquentOccupancies30.size;
+      delinquent60 = delinquentOccupancies60.size;
 
-      // Also check column-based aging buckets
-      const over60 = parseFloat(row["61_90"] || row["61-90"] || row.over_60 || 0)
-        + parseFloat(row["91_plus"] || row["91+"] || row.over_90 || 0);
-      const over30 = parseFloat(row["31_60"] || row["31-60"] || row.over_30 || 0);
+      // Monthly income from recurring charges
+      const propRecurring = recurringCharges.filter((rc) => {
+        const occId = rc.occupancy_id || rc.OccupancyId;
+        return occupancyIds.has(occId);
+      });
 
-      if (over60 > 0 || daysLate >= 60) {
-        d.delinquent60++;
-        d.delinquentAmount60 += over60 || totalDue;
-      } else if (over30 > 0 || daysLate >= 30) {
-        d.delinquent30++;
-        d.delinquentAmount30 += over30 || totalDue;
+      let monthlyIncome = 0;
+      for (const rc of propRecurring) {
+        const amount = parseFloat(rc.amount || rc.Amount || 0);
+        const freq = (rc.frequency || rc.Frequency || "").toLowerCase();
+        const endDate = rc.end_date || rc.EndDate;
+
+        // Skip expired charges
+        if (endDate && new Date(endDate) < now) continue;
+
+        // Normalize to monthly
+        if (freq === "monthly" || freq === "month" || !freq) {
+          monthlyIncome += amount;
+        } else if (freq === "weekly" || freq === "week") {
+          monthlyIncome += amount * 4.33;
+        } else if (freq === "yearly" || freq === "annual" || freq === "year") {
+          monthlyIncome += amount / 12;
+        } else {
+          monthlyIncome += amount; // assume monthly
+        }
       }
-    }
 
-    // Merge into final property list
-    const properties = Object.entries(propertyMap).map(([name, prop]) => {
-      const delinq = delinquencyByProp[name] || {
-        delinquent30: 0,
-        delinquent60: 0,
-        delinquentAmount30: 0,
-        delinquentAmount60: 0,
-      };
       return {
-        name: prop.name,
-        address: prop.address,
-        totalUnits: prop.totalUnits,
-        occupiedUnits: prop.occupiedUnits,
-        leasedUnits: prop.leasedUnits,
-        monthlyIncome: Math.round(prop.monthlyIncome * 100) / 100,
-        collectedIncome: 0, // not available from rent roll — needs payment report
-        ...delinq,
-        delinquentAmount30: Math.round(delinq.delinquentAmount30 * 100) / 100,
-        delinquentAmount60: Math.round(delinq.delinquentAmount60 * 100) / 100,
+        appfolioId: propId,
+        name: propName,
+        address: [
+          prop.address_1 || prop.Address1 || "",
+          prop.city || prop.City || "",
+          prop.state || prop.State || "",
+          prop.zip || prop.Zip || "",
+        ]
+          .filter(Boolean)
+          .join(", "),
+        propertyType: prop.property_type || prop.PropertyType || "Multi-Family",
+        totalUnits,
+        occupiedUnits,
+        leasedUnits,
+        delinquent30,
+        delinquent60,
+        delinquentAmount30: round2(delinquentAmount30),
+        delinquentAmount60: round2(delinquentAmount60),
+        monthlyIncome: round2(monthlyIncome),
+        collectedIncome: 0, // requires payment ledger analysis
       };
     });
 
-    return res.status(200).json({ ok: true, properties, syncedAt: new Date().toISOString() });
+    return res.status(200).json({
+      ok: true,
+      properties: result,
+      syncedAt: new Date().toISOString(),
+      counts: {
+        properties: properties.length,
+        units: units.length,
+        tenants: tenants.length,
+        delinquentCharges: delinquentCharges.length,
+        recurringCharges: recurringCharges.length,
+      },
+    });
   } catch (err) {
     console.error("Appfolio sync error:", err);
     return res.status(500).json({ error: err.message });
   }
 }
 
-// Fetches all pages of a paginated Appfolio report
+function round2(n) {
+  return Math.round(n * 100) / 100;
+}
+
+// Fetches all pages of a paginated Appfolio response
+// Pagination requests do NOT count against the rate limit
 async function fetchAllPages(url, headers) {
   const rows = [];
   let nextUrl = url;
@@ -138,13 +200,12 @@ async function fetchAllPages(url, headers) {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Appfolio API ${res.status}: ${text}`);
+      throw new Error(`Appfolio ${res.status} on ${nextUrl}: ${text.slice(0, 200)}`);
     }
 
     const data = await res.json();
 
     if (Array.isArray(data)) {
-      // Non-paginated response
       rows.push(...data);
       break;
     }
@@ -153,7 +214,6 @@ async function fetchAllPages(url, headers) {
       rows.push(...data.results);
       nextUrl = data.next_page_url || null;
     } else {
-      // Unknown format — return whatever we got
       rows.push(data);
       break;
     }

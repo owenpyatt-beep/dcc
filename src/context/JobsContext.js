@@ -211,7 +211,7 @@ function propertiesReducer(state, action) {
             name: ap.name,
             shortName: ap.name.split(/\s+/)[0],
             address: ap.address || "",
-            type: "Multi-Family",
+            type: ap.propertyType || "Multi-Family",
             totalUnits: ap.totalUnits,
             occupiedUnits: ap.occupiedUnits,
             leasedUnits: ap.leasedUnits,
