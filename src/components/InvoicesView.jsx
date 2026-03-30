@@ -112,9 +112,11 @@ export default function InvoicesView() {
       (inv.amountDue || 0).toFixed(2),
       `"${(inv.jobName || "").replace(/"/g, '""')}"`,
       `"${mapTrade(inv.tradeCategory).replace(/"/g, '""')}"`,
+      `"${(inv.invoiceType || "standard").replace(/"/g, '""')}"`,
+      `"${(inv.missingDataFlag || "").replace(/"/g, '""')}"`,
     ]);
     const csv =
-      "vendor,invoiceNumber,invoiceDate,amountDue,jobName,tradeCategory\n" +
+      "vendor,invoiceNumber,invoiceDate,amountDue,jobName,tradeCategory,invoiceType,missingDataFlag\n" +
       rows.map((r) => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -454,7 +456,7 @@ export default function InvoicesView() {
               <thead>
                 <tr style={{ borderBottom: `1px solid ${T.border}` }}>
                   {(extracted
-                    ? ["Trade Category", "Vendor", "Amount", "% of Total", ""]
+                    ? ["Trade Category", "Vendor", "Amount", "Type", ""]
                     : ["Trade Category", "Amount", "% of Draw", ""]
                   ).map((h, i) => (
                     <th
@@ -580,40 +582,19 @@ export default function InvoicesView() {
                               />
                             </td>
                             <td style={{ padding: "10px 24px" }}>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 10,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    flex: 1,
-                                    height: 3,
-                                    borderRadius: 2,
-                                    background: T.bg4,
-                                    overflow: "hidden",
-                                    maxWidth: 80,
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      height: "100%",
-                                      width: `${p}%`,
-                                      background:
-                                        COLORS[gi % COLORS.length],
-                                    }}
+                              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                                <Badge
+                                  label={inv.invoiceType === "pay_application" ? "Pay App" : inv.invoiceType === "statement_line" ? "Statement" : "Invoice"}
+                                  color={inv.invoiceType === "pay_application" ? T.amber : inv.invoiceType === "statement_line" ? "#a680d4" : T.text2}
+                                  bg={inv.invoiceType === "pay_application" ? T.amberDim : inv.invoiceType === "statement_line" ? "rgba(166,128,212,0.12)" : T.bg4}
+                                />
+                                {inv.missingDataFlag && (
+                                  <Badge
+                                    label={inv.missingDataFlag.length > 20 ? inv.missingDataFlag.slice(0, 20) + "..." : inv.missingDataFlag}
+                                    color={T.red}
+                                    bg={T.redDim}
                                   />
-                                </div>
-                                <Mono
-                                  style={{
-                                    fontSize: 11,
-                                    color: T.text2,
-                                  }}
-                                >
-                                  {p}%
-                                </Mono>
+                                )}
                               </div>
                             </td>
                             <td
