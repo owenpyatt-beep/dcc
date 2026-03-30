@@ -56,40 +56,44 @@ export default function PropertiesView() {
   return (
     <div>
       {/* Property selector */}
-      {managed.length > 1 && (
-        <div
-          style={{
-            display: "flex",
-            gap: 4,
-            marginBottom: 24,
-            background: T.bg2,
-            borderRadius: 10,
-            padding: 4,
-            border: `1px solid ${T.border}`,
-            width: "fit-content",
-          }}
-        >
-          {managed.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setSelectedId(p.id)}
-              style={{
-                background: selectedId === p.id ? T.bg4 : "transparent",
-                border: selectedId === p.id ? `1px solid ${T.border}` : "1px solid transparent",
-                color: selectedId === p.id ? T.text0 : T.text2,
-                fontSize: 12,
-                fontWeight: 600,
-                padding: "7px 18px",
-                borderRadius: 7,
-                cursor: "pointer",
-                transition: "all 0.15s",
-              }}
-            >
-              {p.shortName}
-            </button>
-          ))}
-        </div>
-      )}
+      <div
+        style={{
+          display: "flex",
+          gap: 4,
+          marginBottom: 24,
+          background: T.bg2,
+          borderRadius: 10,
+          padding: 4,
+          border: `1px solid ${T.border}`,
+          width: "fit-content",
+        }}
+      >
+        {managed.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setSelectedId(p.id)}
+            style={{
+              background: selectedId === p.id ? T.bg4 : "transparent",
+              border: selectedId === p.id ? `1px solid ${T.border}` : "1px solid transparent",
+              color: selectedId === p.id ? T.text0 : T.text2,
+              fontSize: 12,
+              fontWeight: 600,
+              padding: "7px 18px",
+              borderRadius: 7,
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+          >
+            {p.shortName}
+          </button>
+        ))}
+      </div>
+
+      {/* Property header */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 700, color: T.text0, letterSpacing: "-0.01em" }}>{prop.name}</div>
+        <div style={{ fontSize: 12, color: T.text2, marginTop: 3 }}>{prop.address} &middot; {prop.type} &middot; {prop.totalUnits} units</div>
+      </div>
 
       {/* KPI row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
