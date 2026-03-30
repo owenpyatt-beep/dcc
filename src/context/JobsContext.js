@@ -242,7 +242,35 @@ function propertiesReducer(state, action) {
             funded: funded !== undefined ? funded : d.funded,
           };
         });
-        return recomputeBuild({ ...p, draws });
+        let updated = recomputeBuild({ ...p, draws });
+
+        // Auto-compute cashflow when a draw is funded
+        if (status === "funded") {
+          const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          const fundedDraw = draws.find((d) => d.num === drawNum);
+          const drawAmount = fundedDraw ? fundedDraw.amount : 0;
+          const fundedDate = funded || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+          const monthKey = monthNames[new Date(fundedDate).getMonth()] || monthNames[new Date().getMonth()];
+
+          let cashflow = [...(updated.cashflow || [])];
+          const existing = cashflow.find((c) => c.month === monthKey);
+          if (existing) {
+            cashflow = cashflow.map((c) =>
+              c.month === monthKey ? { ...c, drawn: c.drawn + drawAmount } : c
+            );
+          } else {
+            cashflow.push({ month: monthKey, drawn: drawAmount, cumulative: 0 });
+          }
+          // Recalculate cumulative
+          let cum = 0;
+          cashflow = cashflow.map((c) => {
+            cum += c.drawn;
+            return { ...c, cumulative: cum };
+          });
+          updated = { ...updated, cashflow };
+        }
+
+        return updated;
       });
     }
 

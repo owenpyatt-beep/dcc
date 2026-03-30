@@ -1,13 +1,37 @@
 import React, { useState } from "react";
 import { T, DRAW_STATUS } from "../data/jobs";
-import { fc, Mono, StatusDot } from "../utils/format";
+import { fc, pct, short, Mono, StatusDot, ProgressBar, KpiCard } from "../utils/format";
 import { useJobs } from "../context/JobsContext";
 
+const STAGE_ORDER = ["compiling", "in_review", "submitted", "funded"];
+const NEXT_STAGE = {
+  compiling: "in_review",
+  in_review: "submitted",
+  submitted: "funded",
+};
+const NEXT_LABEL = {
+  compiling: "Move to Review",
+  in_review: "Mark Submitted",
+  submitted: "Mark Funded",
+};
+
+const editInput = {
+  background: T.bg4,
+  border: `1px solid ${T.border}`,
+  borderRadius: 4,
+  color: T.text0,
+  fontFamily: "'JetBrains Mono', monospace",
+  fontSize: 13,
+  padding: "6px 10px",
+  outline: "none",
+  width: 90,
+  textAlign: "right",
+};
+
 export default function DrawsView() {
-  const { builds, addDraw } = useJobs();
+  const { builds, addDraw, updateDrawStatus, updateProperty } = useJobs();
   const [selectedJob, setSelectedJob] = useState(builds[0]?.id);
   const job = builds.find((j) => j.id === selectedJob) || builds[0];
-  const stages = ["compiling", "in_review", "submitted", "funded"];
   const stageLabels = {
     compiling: "Compiling",
     in_review: "In Review",
@@ -17,8 +41,22 @@ export default function DrawsView() {
 
   if (!job) return null;
 
+  const handleAdvance = (drawNum, currentStatus) => {
+    const next = NEXT_STAGE[currentStatus];
+    if (!next) return;
+    const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const extra = {};
+    if (next === "submitted" || next === "in_review") extra.submitted = today;
+    if (next === "funded") extra.funded = today;
+    updateDrawStatus(job.id, drawNum, next, extra);
+  };
+
+  const drawnPct = job.loanAmount > 0 ? pct(job.drawnToDate, job.loanAmount) : 0;
+  const equityPct = job.equityRequired > 0 ? pct(job.equityIn, job.equityRequired) : 0;
+
   return (
     <div>
+      {/* Job selector */}
       <div
         style={{
           display: "flex",
@@ -37,12 +75,8 @@ export default function DrawsView() {
             key={j.id}
             onClick={() => setSelectedJob(j.id)}
             style={{
-              background:
-                selectedJob === j.id ? T.bg4 : "transparent",
-              border:
-                selectedJob === j.id
-                  ? `1px solid ${T.border}`
-                  : "1px solid transparent",
+              background: selectedJob === j.id ? T.bg4 : "transparent",
+              border: selectedJob === j.id ? `1px solid ${T.border}` : "1px solid transparent",
               color: selectedJob === j.id ? T.text0 : T.text2,
               fontSize: 12,
               fontWeight: 600,
@@ -74,15 +108,67 @@ export default function DrawsView() {
         </button>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 14,
-          marginBottom: 28,
-        }}
-      >
-        {stages.map((stage) => {
+      {/* ── Build Financials ─────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, marginBottom: 24 }}>
+        <KpiCard
+          label="Total Project Cost"
+          value={job.totalProjectCost > 0 ? short(job.totalProjectCost) : "\u2014"}
+          sub={job.loanAmount > 0 ? `Loan: ${short(job.loanAmount)}` : ""}
+          accent={T.gold}
+        />
+        <KpiCard
+          label="Drawn to Date"
+          value={short(job.drawnToDate)}
+          sub={job.loanAmount > 0 ? `${drawnPct}% of loan` : ""}
+          accent={T.blue}
+        />
+        <KpiCard
+          label="Available"
+          value={short(Math.max(0, job.loanAmount - job.drawnToDate))}
+          sub="remaining on loan"
+          accent={T.green}
+        />
+        <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "20px 22px", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${T.amber}44, transparent)` }} />
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: T.text2, marginBottom: 8 }}>Equity In</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: T.text2, fontSize: 16 }}>$</span>
+            <input
+              type="number"
+              value={job.equityIn}
+              onChange={(e) => updateProperty(job.id, { equityIn: e.target.value })}
+              style={{ ...editInput, fontSize: 18, fontWeight: 700, width: "100%", color: T.amber }}
+            />
+          </div>
+          {job.equityRequired > 0 && (
+            <div style={{ fontSize: 11, color: T.text2, marginTop: 8 }}>
+              {equityPct}% of {fc(job.equityRequired)} required
+            </div>
+          )}
+        </div>
+        <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "20px 22px", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${T.blue}44, transparent)` }} />
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: T.text2, marginBottom: 8 }}>Completion</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input
+              type="number"
+              value={job.completion}
+              onChange={(e) => updateProperty(job.id, { completion: e.target.value })}
+              style={{ ...editInput, fontSize: 22, fontWeight: 700, width: 70, color: T.blue }}
+              min="0"
+              max="100"
+            />
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 18, color: T.blue, fontWeight: 700 }}>%</span>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <ProgressBar value={job.completion} max={100} color={T.blue} height={4} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Draw Kanban ──────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 28 }}>
+        {STAGE_ORDER.map((stage) => {
           const draws = job.draws.filter((d) => d.status === stage);
           const ds = DRAW_STATUS[stage];
           return (
@@ -104,128 +190,60 @@ export default function DrawsView() {
                   alignItems: "center",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 7,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: "50%",
-                      background: ds.color,
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: ds.color,
-                      letterSpacing: "0.07em",
-                      textTransform: "uppercase",
-                    }}
-                  >
+                <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: ds.color }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: ds.color, letterSpacing: "0.07em", textTransform: "uppercase" }}>
                     {stageLabels[stage]}
                   </span>
                 </div>
-                <span style={{ fontSize: 11, color: T.text2 }}>
-                  {draws.length}
-                </span>
+                <span style={{ fontSize: 11, color: T.text2 }}>{draws.length}</span>
               </div>
               <div style={{ padding: 12, minHeight: 80 }}>
                 {draws.map((d) => (
-                  <div
-                    key={d.num}
-                    style={{
-                      background: T.bg3,
-                      borderRadius: 8,
-                      padding: "12px 14px",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: T.text0,
-                        marginBottom: 6,
-                      }}
-                    >
-                      Draw #{d.num}
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: 14,
-                        color: ds.color,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {fc(d.amount)}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 10,
-                        color: T.text2,
-                        marginTop: 4,
-                      }}
-                    >
-                      {d.invoices} invoices
-                    </div>
-                    {d.submitted && (
-                      <div
-                        style={{
-                          fontSize: 10,
-                          color: T.text2,
-                          marginTop: 2,
-                        }}
-                      >
-                        Sub: {d.submitted}
-                      </div>
-                    )}
-                    {d.funded && (
-                      <div
-                        style={{
-                          fontSize: 10,
-                          color: T.green,
-                          marginTop: 2,
-                        }}
-                      >
-                        Funded: {d.funded}
-                      </div>
-                    )}
+                  <div key={d.num} style={{ background: T.bg3, borderRadius: 8, padding: "12px 14px", marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: T.text0, marginBottom: 6 }}>Draw #{d.num}</div>
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, color: ds.color, fontWeight: 700 }}>{fc(d.amount)}</div>
+                    <div style={{ fontSize: 10, color: T.text2, marginTop: 4 }}>{d.invoices} invoices</div>
+                    {d.submitted && <div style={{ fontSize: 10, color: T.text2, marginTop: 2 }}>Sub: {d.submitted}</div>}
+                    {d.funded && <div style={{ fontSize: 10, color: T.green, marginTop: 2 }}>Funded: {d.funded}</div>}
                     {d.accuracy && (
-                      <div
+                      <div style={{ fontSize: 10, color: T.text2, marginTop: 2 }}>
+                        Accuracy: <span style={{ color: T.green }}>{d.accuracy}%</span>
+                      </div>
+                    )}
+                    {/* Advance button */}
+                    {NEXT_STAGE[stage] && (
+                      <button
+                        onClick={() => handleAdvance(d.num, stage)}
                         style={{
+                          marginTop: 10,
+                          width: "100%",
+                          background: `${DRAW_STATUS[NEXT_STAGE[stage]].color}18`,
+                          border: `1px solid ${DRAW_STATUS[NEXT_STAGE[stage]].color}33`,
+                          borderRadius: 5,
+                          color: DRAW_STATUS[NEXT_STAGE[stage]].color,
                           fontSize: 10,
-                          color: T.text2,
-                          marginTop: 2,
+                          fontWeight: 600,
+                          padding: "5px 0",
+                          cursor: "pointer",
+                          letterSpacing: "0.04em",
+                          fontFamily: "inherit",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 5,
                         }}
                       >
-                        Accuracy:{" "}
-                        <span style={{ color: T.green }}>
-                          {d.accuracy}%
-                        </span>
-                      </div>
+                        <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                          <path d="M3 8h10M10 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        {NEXT_LABEL[stage]}
+                      </button>
                     )}
                   </div>
                 ))}
                 {draws.length === 0 && (
-                  <div
-                    style={{
-                      height: 60,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 11,
-                      color: T.text3,
-                    }}
-                  >
-                    —
-                  </div>
+                  <div style={{ height: 60, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: T.text3 }}>—</div>
                 )}
               </div>
             </div>
@@ -233,71 +251,21 @@ export default function DrawsView() {
         })}
       </div>
 
-      <div
-        style={{
-          background: T.bg2,
-          border: `1px solid ${T.border}`,
-          borderRadius: 10,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            padding: "18px 24px",
-            borderBottom: `1px solid ${T.border}`,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.09em",
-              textTransform: "uppercase",
-              color: T.text2,
-            }}
-          >
+      {/* ── Draw History Table ────────────────────────── */}
+      <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
+        <div style={{ padding: "18px 24px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2 }}>
             Draw History — {job.name}
           </div>
-          <div
-            style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 12,
-              color: T.text2,
-            }}
-          >
-            {fc(job.draws.reduce((s, d) => s + d.amount, 0))} total &middot;{" "}
-            {job.draws.length} draws
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: T.text2 }}>
+            {fc(job.draws.reduce((s, d) => s + d.amount, 0))} total &middot; {job.draws.length} draws
           </div>
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-              {[
-                "Draw",
-                "Amount",
-                "Invoices",
-                "Accuracy",
-                "Submitted",
-                "Funded",
-                "Status",
-              ].map((h) => (
-                <th
-                  key={h}
-                  style={{
-                    padding: "10px 24px",
-                    textAlign: "left",
-                    fontSize: 9,
-                    fontWeight: 700,
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase",
-                    color: T.text3,
-                  }}
-                >
-                  {h}
-                </th>
+              {["Draw", "Amount", "Invoices", "Accuracy", "Submitted", "Funded", "Status", ""].map((h) => (
+                <th key={h} style={{ padding: "10px 24px", textAlign: "left", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: T.text3 }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -305,100 +273,51 @@ export default function DrawsView() {
             {job.draws.map((d, i) => (
               <tr
                 key={d.num}
-                style={{
-                  borderBottom:
-                    i < job.draws.length - 1
-                      ? `1px solid ${T.bg3}`
-                      : "none",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = T.bg3)
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
+                style={{ borderBottom: i < job.draws.length - 1 ? `1px solid ${T.bg3}` : "none" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = T.bg3)}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
-                <td
-                  style={{
-                    padding: "13px 24px",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: T.text0,
-                  }}
-                >
-                  #{d.num}
-                </td>
-                <td style={{ padding: "13px 24px" }}>
-                  <Mono style={{ fontSize: 13, color: T.gold }}>
-                    {fc(d.amount)}
-                  </Mono>
-                </td>
-                <td
-                  style={{
-                    padding: "13px 24px",
-                    fontSize: 12,
-                    color: T.text1,
-                  }}
-                >
-                  {d.invoices}
-                </td>
+                <td style={{ padding: "13px 24px", fontSize: 13, fontWeight: 700, color: T.text0 }}>#{d.num}</td>
+                <td style={{ padding: "13px 24px" }}><Mono style={{ fontSize: 13, color: T.gold }}>{fc(d.amount)}</Mono></td>
+                <td style={{ padding: "13px 24px", fontSize: 12, color: T.text1 }}>{d.invoices}</td>
                 <td style={{ padding: "13px 24px" }}>
                   {d.accuracy ? (
-                    <Mono
-                      style={{
-                        fontSize: 12,
-                        color:
-                          d.accuracy > 99.5 ? T.green : T.amber,
-                      }}
-                    >
-                      {d.accuracy}%
-                    </Mono>
+                    <Mono style={{ fontSize: 12, color: d.accuracy > 99.5 ? T.green : T.amber }}>{d.accuracy}%</Mono>
                   ) : (
                     <span style={{ color: T.text3 }}>—</span>
                   )}
                 </td>
-                <td
-                  style={{
-                    padding: "13px 24px",
-                    fontSize: 12,
-                    color: T.text1,
-                  }}
-                >
-                  {d.submitted || (
-                    <span style={{ color: T.text3 }}>—</span>
+                <td style={{ padding: "13px 24px", fontSize: 12, color: T.text1 }}>{d.submitted || <span style={{ color: T.text3 }}>—</span>}</td>
+                <td style={{ padding: "13px 24px", fontSize: 12, color: d.funded ? T.green : T.text3 }}>{d.funded || "—"}</td>
+                <td style={{ padding: "13px 24px" }}><StatusDot status={d.status} /></td>
+                <td style={{ padding: "13px 24px", textAlign: "right" }}>
+                  {NEXT_STAGE[d.status] && (
+                    <button
+                      onClick={() => handleAdvance(d.num, d.status)}
+                      style={{
+                        background: `${DRAW_STATUS[NEXT_STAGE[d.status]].color}18`,
+                        border: `1px solid ${DRAW_STATUS[NEXT_STAGE[d.status]].color}33`,
+                        borderRadius: 5,
+                        color: DRAW_STATUS[NEXT_STAGE[d.status]].color,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        padding: "4px 10px",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {NEXT_LABEL[d.status]}
+                    </button>
                   )}
-                </td>
-                <td
-                  style={{
-                    padding: "13px 24px",
-                    fontSize: 12,
-                    color: d.funded ? T.green : T.text3,
-                  }}
-                >
-                  {d.funded || "—"}
-                </td>
-                <td style={{ padding: "13px 24px" }}>
-                  <StatusDot status={d.status} />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <div
-          style={{
-            padding: "12px 24px",
-            borderTop: `1px solid ${T.border}`,
-            background: T.bg3,
-            display: "flex",
-            justifyContent: "space-between",
-          }}
-        >
-          <span style={{ fontSize: 11, color: T.text2 }}>
-            Cumulative drawn
-          </span>
-          <Mono style={{ fontSize: 12, color: T.gold }}>
-            {fc(job.drawnToDate)} of {fc(job.loanAmount)}
-          </Mono>
+        <div style={{ padding: "12px 24px", borderTop: `1px solid ${T.border}`, background: T.bg3, display: "flex", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 11, color: T.text2 }}>Cumulative drawn</span>
+          <Mono style={{ fontSize: 12, color: T.gold }}>{fc(job.drawnToDate)} of {fc(job.loanAmount)}</Mono>
         </div>
       </div>
     </div>
