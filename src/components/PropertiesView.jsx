@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { T } from "../data/jobs";
 import { fc, pct, Mono, KpiCard } from "../utils/format";
 import { useJobs } from "../context/JobsContext";
+import { syncProperties } from "../utils/appfolio";
 
 const fieldLabel = {
   fontSize: 9,
@@ -33,9 +34,32 @@ const wideInput = {
 };
 
 export default function PropertiesView() {
-  const { managed, updateProperty } = useJobs();
+  const { managed, updateProperty, syncAppfolio } = useJobs();
   const [selectedId, setSelectedId] = useState(managed[0]?.id);
   const prop = managed.find((p) => p.id === selectedId) || managed[0];
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(null);
+  const [syncSuccess, setSyncSuccess] = useState(null);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncError(null);
+    setSyncSuccess(null);
+    try {
+      const result = await syncProperties();
+      if (result.ok && result.properties) {
+        syncAppfolio(result.properties);
+        setSyncSuccess(`Synced ${result.properties.length} properties from Appfolio`);
+        setTimeout(() => setSyncSuccess(null), 4000);
+      } else {
+        setSyncError(result.error || "Sync returned no data");
+      }
+    } catch (err) {
+      setSyncError(err.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   if (!prop) {
     return (
@@ -89,11 +113,56 @@ export default function PropertiesView() {
         ))}
       </div>
 
-      {/* Property header */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 700, color: T.text0, letterSpacing: "-0.01em" }}>{prop.name}</div>
-        <div style={{ fontSize: 12, color: T.text2, marginTop: 3 }}>{prop.address} &middot; {prop.type} &middot; {prop.totalUnits} units</div>
+      {/* Property header + sync */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+        <div>
+          <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 700, color: T.text0, letterSpacing: "-0.01em" }}>{prop.name}</div>
+          <div style={{ fontSize: 12, color: T.text2, marginTop: 3 }}>
+            {prop.address} &middot; {prop.type} &middot; {prop.totalUnits} units
+            {prop.lastSynced && (
+              <span style={{ marginLeft: 12, color: T.text3 }}>
+                Last synced: {new Date(prop.lastSynced).toLocaleString()}
+              </span>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={handleSync}
+          disabled={syncing}
+          style={{
+            background: T.blueDim,
+            border: `1px solid ${T.blue}44`,
+            borderRadius: 7,
+            color: T.blue,
+            fontSize: 11,
+            fontWeight: 600,
+            padding: "7px 16px",
+            cursor: syncing ? "wait" : "pointer",
+            fontFamily: "inherit",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            opacity: syncing ? 0.6 : 1,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={syncing ? { animation: "spin 1s linear infinite" } : {}}>
+            <path d="M4 12a8 8 0 0114.93-4M20 12a8 8 0 01-14.93 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <path d="M20 4v4h-4M4 20v-4h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {syncing ? "Syncing..." : "Sync from Appfolio"}
+        </button>
       </div>
+      {syncing && <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>}
+      {syncError && (
+        <div style={{ background: T.redDim, border: `1px solid ${T.red}44`, borderRadius: 8, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: T.red }}>
+          {syncError}
+        </div>
+      )}
+      {syncSuccess && (
+        <div style={{ background: T.greenDim, border: `1px solid ${T.green}44`, borderRadius: 8, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: T.green }}>
+          {syncSuccess}
+        </div>
+      )}
 
       {/* KPI row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>

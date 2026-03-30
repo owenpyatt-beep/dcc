@@ -170,6 +170,65 @@ function propertiesReducer(state, action) {
       });
     }
 
+    case "SYNC_APPFOLIO": {
+      const { appfolioProperties } = action.payload;
+      let updated = [...state];
+
+      for (const ap of appfolioProperties) {
+        // Match by name (case-insensitive, trimmed)
+        const match = updated.find(
+          (p) =>
+            p.category === "managed" &&
+            p.name.toLowerCase().trim() === ap.name.toLowerCase().trim()
+        );
+
+        if (match) {
+          // Update existing managed property with Appfolio data
+          updated = updated.map((p) =>
+            p.id === match.id
+              ? {
+                  ...p,
+                  totalUnits: ap.totalUnits,
+                  occupiedUnits: ap.occupiedUnits,
+                  leasedUnits: ap.leasedUnits,
+                  monthlyIncome: ap.monthlyIncome,
+                  collectedIncome: ap.collectedIncome || p.collectedIncome,
+                  delinquent30: ap.delinquent30,
+                  delinquent60: ap.delinquent60,
+                  delinquentAmount30: ap.delinquentAmount30,
+                  delinquentAmount60: ap.delinquentAmount60,
+                  address: ap.address || p.address,
+                  lastSynced: new Date().toISOString(),
+                }
+              : p
+          );
+        } else {
+          // Create new managed property from Appfolio
+          const id = nextPropertyId(updated);
+          updated.push({
+            id,
+            category: "managed",
+            name: ap.name,
+            shortName: ap.name.split(/\s+/)[0],
+            address: ap.address || "",
+            type: "Multi-Family",
+            totalUnits: ap.totalUnits,
+            occupiedUnits: ap.occupiedUnits,
+            leasedUnits: ap.leasedUnits,
+            delinquent30: ap.delinquent30,
+            delinquent60: ap.delinquent60,
+            delinquentAmount30: ap.delinquentAmount30,
+            delinquentAmount60: ap.delinquentAmount60,
+            monthlyIncome: ap.monthlyIncome,
+            collectedIncome: ap.collectedIncome || 0,
+            lastSynced: new Date().toISOString(),
+          });
+        }
+      }
+
+      return updated;
+    }
+
     case "UPDATE_DRAW_STATUS": {
       const { jobId, drawNum, status, submitted, funded } = action.payload;
       return state.map((p) => {
@@ -225,6 +284,8 @@ export function JobsProvider({ children }) {
       dispatch({ type: "COMMIT_EXTRACTION", payload: { jobId, drawNum, invoices } }),
     updateDrawStatus: (jobId, drawNum, status, extra = {}) =>
       dispatch({ type: "UPDATE_DRAW_STATUS", payload: { jobId, drawNum, status, ...extra } }),
+    syncAppfolio: (appfolioProperties) =>
+      dispatch({ type: "SYNC_APPFOLIO", payload: { appfolioProperties } }),
   };
 
   return <JobsContext.Provider value={ctx}>{children}</JobsContext.Provider>;
