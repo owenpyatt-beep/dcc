@@ -335,84 +335,77 @@ export default function PropertiesView() {
         </div>
       </div>
 
-      {/* Income */}
-      <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px", marginTop: 18 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>
-          Income
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 18 }}>
-          <div>
-            <div style={fieldLabel}>Monthly Expected</div>
-            <input
-              type="number"
-              value={prop.monthlyIncome}
-              onChange={(e) => set("monthlyIncome", e.target.value)}
-              style={{ ...editInput, width: "100%" }}
-              step="0.01"
-            />
-            {prop.monthlyIncome > 0 && (
-              <div style={{ marginTop: 8 }}>
-                <Mono style={{ fontSize: 18, fontWeight: 700, color: T.gold }}>{fc(prop.monthlyIncome)}</Mono>
-              </div>
-            )}
-          </div>
-          <div>
-            <div style={fieldLabel}>Collected</div>
-            <input
-              type="number"
-              value={prop.collectedIncome}
-              onChange={(e) => set("collectedIncome", e.target.value)}
-              style={{ ...editInput, width: "100%" }}
-              step="0.01"
-            />
-            {prop.collectedIncome > 0 && (
-              <div style={{ marginTop: 8 }}>
-                <Mono style={{ fontSize: 18, fontWeight: 700, color: T.green }}>{fc(prop.collectedIncome)}</Mono>
-              </div>
-            )}
-          </div>
-          <div>
-            <div style={fieldLabel}>Collection Rate</div>
-            <div style={{ marginTop: 6 }}>
-              <Mono style={{ fontSize: 24, fontWeight: 700, color: collectionRate >= 95 ? T.green : collectionRate >= 85 ? T.amber : T.red }}>
-                {prop.monthlyIncome > 0 ? `${collectionRate}%` : "\u2014"}
-              </Mono>
-            </div>
-            {prop.monthlyIncome > 0 && prop.collectedIncome < prop.monthlyIncome && (
-              <div style={{ fontSize: 11, color: T.text2, marginTop: 4 }}>
-                {fc(prop.monthlyIncome - prop.collectedIncome)} outstanding
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Financial Overview (YTD) */}
-      {(prop.ytdRentalIncome > 0 || prop.ytdNOI > 0) && (
+      {/* Vacancy Pipeline */}
+      {(prop.vacantRented > 0 || prop.vacantUnrented > 0 || prop.noticeRented > 0 || prop.noticeUnrented > 0) && (
         <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px", marginTop: 18 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>
-            Financial Overview (YTD)
+            Vacancy Pipeline
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18 }}>
-            <div>
-              <div style={fieldLabel}>Rental Income</div>
-              <Mono style={{ fontSize: 18, fontWeight: 700, color: T.gold }}>{fc(prop.ytdRentalIncome || 0)}</Mono>
-            </div>
-            <div>
-              <div style={fieldLabel}>Total Income</div>
-              <Mono style={{ fontSize: 18, fontWeight: 700, color: T.text0 }}>{fc(prop.ytdTotalIncome || 0)}</Mono>
-            </div>
-            <div>
-              <div style={fieldLabel}>Expenses</div>
-              <Mono style={{ fontSize: 18, fontWeight: 700, color: T.red }}>{fc(prop.ytdExpenses || 0)}</Mono>
-            </div>
-            <div>
-              <div style={fieldLabel}>NOI</div>
-              <Mono style={{ fontSize: 18, fontWeight: 700, color: T.green }}>{fc(prop.ytdNOI || 0)}</Mono>
-            </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+            {[
+              { label: "Vacant - Rented", value: prop.vacantRented || 0, color: T.green, sub: "Lease signed, pending move-in" },
+              { label: "Vacant - Unrented", value: prop.vacantUnrented || 0, color: T.red, sub: "Empty, no lease" },
+              { label: "Notice - Rented", value: prop.noticeRented || 0, color: T.blue, sub: "Leaving, replacement found" },
+              { label: "Notice - Unrented", value: prop.noticeUnrented || 0, color: T.amber, sub: "Leaving, no replacement" },
+            ].map((v) => (
+              <div key={v.label} style={{ background: T.bg3, borderRadius: 8, padding: "14px 16px" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 8 }}>{v.label}</div>
+                <Mono style={{ fontSize: 22, fontWeight: 700, color: v.value > 0 ? v.color : T.text3 }}>{v.value}</Mono>
+                <div style={{ fontSize: 10, color: T.text2, marginTop: 4 }}>{v.sub}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
+
+      {/* Income — March 2026 */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginTop: 18 }}>
+        <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>
+            This Month
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            {[
+              { label: "Rental Income", value: prop.monthRentalIncome || prop.collectedIncome || 0, color: T.gold },
+              { label: "Total Income", value: prop.monthTotalIncome || prop.monthlyIncome || 0, color: T.text0 },
+              { label: "Expenses", value: prop.monthExpenses || 0, color: T.red },
+              { label: "NOI", value: prop.monthNOI || 0, color: T.green },
+            ].map((s) => (
+              <div key={s.label}>
+                <div style={fieldLabel}>{s.label}</div>
+                <Mono style={{ fontSize: 18, fontWeight: 700, color: s.color }}>{fc(s.value)}</Mono>
+              </div>
+            ))}
+          </div>
+          {prop.monthlyIncome > 0 && prop.collectedIncome > 0 && (
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 12, color: T.text2 }}>Collection Rate</span>
+              <Mono style={{ fontSize: 20, fontWeight: 700, color: collectionRate >= 95 ? T.green : collectionRate >= 85 ? T.amber : T.red }}>
+                {collectionRate}%
+              </Mono>
+            </div>
+          )}
+        </div>
+
+        <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>
+            Year to Date
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            {[
+              { label: "Rental Income", value: prop.ytdRentalIncome || 0, color: T.gold },
+              { label: "Total Income", value: prop.ytdTotalIncome || 0, color: T.text0 },
+              { label: "Expenses", value: prop.ytdExpenses || 0, color: T.red },
+              { label: "NOI", value: prop.ytdNOI || 0, color: T.green },
+            ].map((s) => (
+              <div key={s.label}>
+                <div style={fieldLabel}>{s.label}</div>
+                <Mono style={{ fontSize: 18, fontWeight: 700, color: s.color }}>{fc(s.value)}</Mono>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,40 @@
+Account Name,Selected Month,% of Selected Month,Year to Month End,% of Year to Month End
+
+Operating Income & Expense,,,,
+    Income,,,,
+        Non-Refundable Deposit,"12,700.00",4.57,"18,700.00",3.44
+        Non Refundable Pet Fee ,900.00,0.32,"2,300.00",0.42
+        Pet Fees,30.00,0.01,60.00,0.01
+        Pet Rent,"2,578.21",0.93,"5,121.11",0.94
+        Rental Income Application,0.00,0.00,0.00,0.00
+        Rental Reimbursmens Utilities,"9,535.53",3.43,"18,544.63",3.41
+        Rental Income,"256,431.08",92.27,"507,465.93",93.42
+        Carport Income,"3,864.88",1.39,"7,572.14",1.39
+        Storage Income,280.00,0.10,534.68,0.10
+        Concessions ,"-11,840.00",-4.26,"-22,395.00",-4.12
+        Application Fee Income,"1,500.00",0.54,"2,250.00",0.41
+        Insurance Services,0.00,0.00,0.00,0.00
+        Late Fee,"1,000.00",0.36,"1,310.00",0.24
+        Short term lease ,692.86,0.25,"1,342.86",0.25
+        NSF Fee,150.00,0.05,150.00,0.03
+        Key Fob ,100.00,0.04,150.00,0.03
+        Violations ,0.00,0.00,75.00,0.01
+    Total Operating Income,"277,922.56",100.00,"543,181.35",100.00
+    Expense,,,,
+        Repairs:Building Repairs,0.00,0.00,0.00,0.00
+        Utilities,-280.00,-0.10,-560.00,-0.10
+    Total Operating Expense,-280.00,-0.10,-560.00,-0.10
+,,,,
+    NOI - Net Operating Income,"278,202.56",100.10,"543,741.35",100.10
+,,,,
+Other Income & Expense,,,,
+    Other Income,,,,
+        Other Income,0.00,0.00,0.00,0.00
+    Total Other Income,0.00,0.00,0.00,0.00
+,,,,
+    Net Other Income,0.00,0.00,0.00,0.00
+,,,,
+    Total Income,"277,922.56",100.00,"543,181.35",100.00
+    Total Expense,-280.00,-0.10,-560.00,-0.10
+,,,,
+    Net Income,"278,202.56",100.10,"543,741.35",100.10

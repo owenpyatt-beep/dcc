@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from "react";
 import { SEED_PROPERTIES } from "../data/jobs";
 
-const STORAGE_KEY = "debrecht_properties_v2";
+const STORAGE_KEY = "debrecht_properties_v3";
 
 const JobsContext = createContext(null);
 
