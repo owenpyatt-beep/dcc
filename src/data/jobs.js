@@ -41,6 +41,10 @@ export const SEED_PROPERTIES = [
     delinquentAmount60: 69147,
     monthlyIncome: 272550,
     collectedIncome: 0,
+    ytdRentalIncome: 3877345,
+    ytdTotalIncome: 4164805,
+    ytdExpenses: 10155,
+    ytdNOI: 4174960,
   },
   // ── Active Builds ───────────────────────────────────
   {

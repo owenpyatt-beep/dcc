@@ -386,6 +386,33 @@ export default function PropertiesView() {
           </div>
         </div>
       </div>
+
+      {/* Financial Overview (YTD) */}
+      {(prop.ytdRentalIncome > 0 || prop.ytdNOI > 0) && (
+        <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px", marginTop: 18 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>
+            Financial Overview (YTD)
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18 }}>
+            <div>
+              <div style={fieldLabel}>Rental Income</div>
+              <Mono style={{ fontSize: 18, fontWeight: 700, color: T.gold }}>{fc(prop.ytdRentalIncome || 0)}</Mono>
+            </div>
+            <div>
+              <div style={fieldLabel}>Total Income</div>
+              <Mono style={{ fontSize: 18, fontWeight: 700, color: T.text0 }}>{fc(prop.ytdTotalIncome || 0)}</Mono>
+            </div>
+            <div>
+              <div style={fieldLabel}>Expenses</div>
+              <Mono style={{ fontSize: 18, fontWeight: 700, color: T.red }}>{fc(prop.ytdExpenses || 0)}</Mono>
+            </div>
+            <div>
+              <div style={fieldLabel}>NOI</div>
+              <Mono style={{ fontSize: 18, fontWeight: 700, color: T.green }}>{fc(prop.ytdNOI || 0)}</Mono>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
