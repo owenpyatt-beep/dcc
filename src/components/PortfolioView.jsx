@@ -64,13 +64,13 @@ export default function PortfolioView({ onSelectManaged, onSelectBuild }) {
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 14 }}>
             Managed Properties
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 14 }}>
+          <div className="grid-4" style={{ marginBottom: 14 }}>
             <KpiCard label="Total Units" value={totalManagedUnits.toLocaleString()} sub={`${managed.length} properties`} accent={T.gold} />
             <KpiCard label="Occupancy" value={`${overallOccPct}%`} sub={`${totalOccupied} of ${totalManagedUnits} occupied`} accent={overallOccPct >= 90 ? T.green : T.amber} />
             <KpiCard label="Monthly Income" value={totalMonthlyIncome > 0 ? fc(totalMonthlyIncome) : "\u2014"} sub={totalMonthlyIncome > 0 ? `${pct(totalCollected, totalMonthlyIncome)}% collected` : "Not yet entered"} accent={T.gold} />
             <KpiCard label="Delinquent" value={managed.reduce((s, p) => s + p.delinquent30 + p.delinquent60, 0) > 0 ? `${managed.reduce((s, p) => s + p.delinquent30 + p.delinquent60, 0)} units` : "0"} sub={fc(managed.reduce((s, p) => s + p.delinquentAmount30 + p.delinquentAmount60, 0)) + " outstanding"} accent={managed.reduce((s, p) => s + p.delinquent30 + p.delinquent60, 0) > 0 ? T.red : T.green} />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: managed.length === 1 ? "1fr" : "1fr 1fr", gap: 18, marginBottom: 32 }}>
+          <div className="grid-2" style={{ marginBottom: 32 }}>
             {managed.map((prop) => {
               const occ = prop.totalUnits > 0 ? pct(prop.occupiedUnits, prop.totalUnits) : 0;
               const leased = prop.totalUnits > 0 ? pct(prop.leasedUnits, prop.totalUnits) : 0;
@@ -136,7 +136,7 @@ export default function PortfolioView({ onSelectManaged, onSelectBuild }) {
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 14 }}>
             Active Builds
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+          <div className="grid-4" style={{ marginBottom: 24 }}>
             <KpiCard label="Total Loan Facility" value={short(totalLoan)} sub={`${builds.length} active builds`} accent={T.gold} />
             <KpiCard label="Total Drawn" value={short(totalDrawn)} sub={totalLoan > 0 ? `${pct(totalDrawn, totalLoan)}% utilized` : "No draws yet"} accent={T.blue} />
             <KpiCard label="Draws In-Flight" value={fc(totalPending)} sub="Pending" accent={T.amber} />
@@ -144,7 +144,7 @@ export default function PortfolioView({ onSelectManaged, onSelectBuild }) {
           </div>
 
           {builds.length > 0 && loanData.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, marginBottom: 18 }}>
+            <div className="grid-chart" style={{ marginBottom: 18 }}>
               <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>Loan Utilization by Project</div>
                 <ResponsiveContainer width="100%" height={Math.max(120, builds.length * 60)}>
@@ -185,7 +185,7 @@ export default function PortfolioView({ onSelectManaged, onSelectBuild }) {
             </div>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: builds.length === 1 ? "1fr" : "1fr 1fr", gap: 18 }}>
+          <div className="grid-2" style={{ gap: 18 }}>
             {builds.map((job) => {
               const drawn = job.loanAmount > 0 ? pct(job.drawnToDate, job.loanAmount) : 0;
               const currentDraw = job.draws[job.draws.length - 1];

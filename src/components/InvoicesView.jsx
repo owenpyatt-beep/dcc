@@ -160,6 +160,8 @@ export default function InvoicesView() {
           padding: 4,
           border: `1px solid ${T.border}`,
           width: "fit-content",
+          overflowX: "auto",
+          flexWrap: "nowrap",
         }}
       >
         {builds.map((j) => (
@@ -191,13 +193,7 @@ export default function InvoicesView() {
         ))}
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 360px",
-          gap: 18,
-        }}
-      >
+      <div className="grid-2-sidebar">
         <div>
           {/* Upload zone */}
           <input
@@ -452,7 +448,8 @@ export default function InvoicesView() {
                 </Mono>
               </div>
             </div>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <div className="table-wrap">
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${T.border}` }}>
                   {(extracted
@@ -725,6 +722,7 @@ export default function InvoicesView() {
                     })}
               </tbody>
             </table>
+          </div>
           </div>
         </div>
 

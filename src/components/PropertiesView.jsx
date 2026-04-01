@@ -114,7 +114,7 @@ export default function PropertiesView() {
       </div>
 
       {/* Property header + sync */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+      <div className="prop-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
         <div>
           <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 700, color: T.text0, letterSpacing: "-0.01em" }}>{prop.name}</div>
           <div style={{ fontSize: 12, color: T.text2, marginTop: 3 }}>
@@ -165,7 +165,7 @@ export default function PropertiesView() {
       )}
 
       {/* KPI row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+      <div className="grid-4" style={{ marginBottom: 24 }}>
         <KpiCard
           label="Occupancy"
           value={`${occPct}%`}
@@ -192,7 +192,7 @@ export default function PropertiesView() {
         />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+      <div className="grid-2">
         {/* Occupancy & Leasing */}
         <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px" }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>
@@ -341,7 +341,7 @@ export default function PropertiesView() {
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>
             Vacancy Pipeline
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+          <div className="grid-4">
             {[
               { label: "Vacant - Rented", value: prop.vacantRented || 0, color: T.green, sub: "Lease signed, pending move-in" },
               { label: "Vacant - Unrented", value: prop.vacantUnrented || 0, color: T.red, sub: "Empty, no lease" },
@@ -359,7 +359,7 @@ export default function PropertiesView() {
       )}
 
       {/* Income — March 2026 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginTop: 18 }}>
+      <div className="grid-2" style={{ marginTop: 18 }}>
         <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px" }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>
             This Month

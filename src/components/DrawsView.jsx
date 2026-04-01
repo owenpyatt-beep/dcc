@@ -68,6 +68,8 @@ export default function DrawsView() {
           border: `1px solid ${T.border}`,
           width: "fit-content",
           alignItems: "center",
+          overflowX: "auto",
+          flexWrap: "nowrap",
         }}
       >
         {builds.map((j) => (
@@ -109,7 +111,7 @@ export default function DrawsView() {
       </div>
 
       {/* ── Build Financials ─────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, marginBottom: 24 }}>
+      <div className="grid-5" style={{ marginBottom: 24 }}>
         <KpiCard
           label="Total Project Cost"
           value={job.totalProjectCost > 0 ? short(job.totalProjectCost) : "\u2014"}
@@ -167,7 +169,7 @@ export default function DrawsView() {
       </div>
 
       {/* ── Draw Kanban ──────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 28 }}>
+      <div className="grid-4" style={{ marginBottom: 28 }}>
         {STAGE_ORDER.map((stage) => {
           const draws = job.draws.filter((d) => d.status === stage);
           const ds = DRAW_STATUS[stage];
@@ -252,6 +254,7 @@ export default function DrawsView() {
       </div>
 
       {/* ── Draw History Table ────────────────────────── */}
+      <div className="table-wrap">
       <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
         <div style={{ padding: "18px 24px", borderBottom: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2 }}>
@@ -319,6 +322,7 @@ export default function DrawsView() {
           <span style={{ fontSize: 11, color: T.text2 }}>Cumulative drawn</span>
           <Mono style={{ fontSize: 12, color: T.gold }}>{fc(job.drawnToDate)} of {fc(job.loanAmount)}</Mono>
         </div>
+      </div>
       </div>
     </div>
   );
