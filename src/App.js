@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { T, DRAW_STATUS } from "./data/jobs";
-import { Mono, pct } from "./utils/format";
+import { pct } from "./utils/format";
 import { useJobs } from "./context/JobsContext";
 import PortfolioView from "./components/PortfolioView";
 import PropertiesView from "./components/PropertiesView";
@@ -183,24 +183,6 @@ export default function App() {
         {builds.length === 0 && <div style={{ padding: "8px 12px", fontSize: 11, color: T.text3 }}>No active builds</div>}
       </nav>
 
-      {/* User section */}
-      <div style={{ padding: "16px 20px", borderTop: `1px solid ${T.border}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 7, background: T.goldDim, border: `1px solid ${T.goldBorder}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: T.gold }}>LD</div>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: T.text1 }}>Lorenzo D.</div>
-            <div style={{ fontSize: 10, color: T.text3 }}>Principal</div>
-          </div>
-          <div style={{ marginLeft: "auto", width: 6, height: 6, borderRadius: "50%", background: T.green, boxShadow: `0 0 6px ${T.green}` }} />
-        </div>
-        <div style={{ marginTop: 10, fontSize: 10, color: T.text3, display: "flex", justifyContent: "space-between" }}>
-          <span>AO Solutions</span>
-          <span style={{ color: T.green }}>
-            <svg width="6" height="6" viewBox="0 0 6 6" fill={T.green} style={{ marginRight: 4, verticalAlign: "middle" }}><circle cx="3" cy="3" r="3" /></svg>
-            Retainer Active
-          </span>
-        </div>
-      </div>
     </>
   );
 
@@ -276,13 +258,7 @@ export default function App() {
             </div>
           </div>
           {!isMobile && (
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 14px", display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 11, color: T.text2 }}>Retainer start:</span>
-                <Mono style={{ fontSize: 11, color: T.gold }}>Apr 1, 2026</Mono>
-              </div>
-              <button onClick={() => setShowAddJob(true)} style={{ background: T.goldDim, border: `1px solid ${T.goldBorder}`, borderRadius: 8, color: T.gold, fontSize: 12, fontWeight: 600, padding: "7px 16px", cursor: "pointer", letterSpacing: "0.04em", fontFamily: "inherit" }}>+ Add Property</button>
-            </div>
+            <button onClick={() => setShowAddJob(true)} style={{ background: T.goldDim, border: `1px solid ${T.goldBorder}`, borderRadius: 8, color: T.gold, fontSize: 12, fontWeight: 600, padding: "7px 16px", cursor: "pointer", letterSpacing: "0.04em", fontFamily: "inherit" }}>+ Add Property</button>
           )}
         </header>
 
