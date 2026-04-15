@@ -73,24 +73,30 @@ const TITLES = {
 };
 
 export default function App() {
-  const { properties, builds, managed, addProperty, loading } = useJobs();
+  const { properties, builds, managed, addProperty, loading, error: dataError } = useJobs();
   const [view, setView] = useState("portfolio");
-  const [loaded, setLoaded] = useState(false);
   const [showAddJob, setShowAddJob] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
-
-  useEffect(() => {
-    const t = setTimeout(() => setLoaded(true), 60);
-    return () => clearTimeout(t);
-  }, []);
 
   if (loading) {
     return (
       <div style={{ fontFamily: "'DM Sans', sans-serif", background: T.bg0, minHeight: "100vh", color: T.text0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, color: T.gold, marginBottom: 12 }}>DCC</div>
-          <div style={{ fontSize: 12, color: T.text2 }}>Loading...</div>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: T.gold, marginBottom: 12 }}>DCC</div>
+          <div style={{ fontSize: 13, color: T.text1 }}>Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (dataError) {
+    return (
+      <div style={{ fontFamily: "'DM Sans', sans-serif", background: T.bg0, minHeight: "100vh", color: T.text0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center", maxWidth: 400 }}>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: T.gold, marginBottom: 12 }}>DCC</div>
+          <div style={{ fontSize: 13, color: T.red, marginBottom: 8 }}>Failed to connect to database</div>
+          <div style={{ fontSize: 11, color: T.text2, wordBreak: "break-all" }}>{dataError}</div>
         </div>
       </div>
     );
@@ -207,8 +213,7 @@ export default function App() {
         display: "flex",
         flexDirection: isMobile ? "column" : "row",
         fontSize: 14,
-        opacity: loaded ? 1 : 0,
-        transition: "opacity 0.4s ease",
+        opacity: 1,
         paddingBottom: isMobile ? 60 : 0,
       }}
     >
