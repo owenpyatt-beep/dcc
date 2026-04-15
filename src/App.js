@@ -7,6 +7,8 @@ import PropertiesView from "./components/PropertiesView";
 import DrawsView from "./components/DrawsView";
 import InvoicesView from "./components/InvoicesView";
 import AddJobModal from "./components/AddJobModal";
+import PrivacyPage from "./components/PrivacyPage";
+import TermsPage from "./components/TermsPage";
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(window.innerWidth < breakpoint);
@@ -73,6 +75,10 @@ const TITLES = {
 };
 
 export default function App() {
+  const path = window.location.pathname;
+  if (path === "/privacy") return <PrivacyPage />;
+  if (path === "/terms") return <TermsPage />;
+
   const { properties, builds, managed, addProperty, loading, error: dataError } = useJobs();
   const [view, setView] = useState("portfolio");
   const [showAddJob, setShowAddJob] = useState(false);
