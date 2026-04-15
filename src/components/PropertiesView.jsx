@@ -71,8 +71,8 @@ export default function PropertiesView() {
 
   const occPct = prop.totalUnits > 0 ? pct(prop.occupiedUnits, prop.totalUnits) : 0;
   const leasePct = prop.totalUnits > 0 ? pct(prop.leasedUnits, prop.totalUnits) : 0;
-  const totalLate Payments = prop.delinquent30 + prop.delinquent60;
-  const totalLate PaymentsAmt = prop.delinquentAmount30 + prop.delinquentAmount60;
+  const totalLate = prop.delinquent30 + prop.delinquent60;
+  const totalLateAmt = prop.delinquentAmount30 + prop.delinquentAmount60;
   const collectionRate = prop.monthlyIncome > 0 ? pct(prop.collectedIncome, prop.monthlyIncome) : 0;
 
   const set = (field, value) => updateProperty(prop.id, { [field]: value });
@@ -180,9 +180,9 @@ export default function PropertiesView() {
         />
         <KpiCard
           label="Late Payments"
-          value={totalLate Payments > 0 ? `${totalLate Payments} units` : "0"}
-          sub={totalLate PaymentsAmt > 0 ? fc(totalLate PaymentsAmt) + " outstanding" : "All current"}
-          accent={totalLate Payments > 0 ? T.red : T.green}
+          value={totalLate > 0 ? `${totalLate} units` : "0"}
+          sub={totalLateAmt > 0 ? fc(totalLateAmt) + " outstanding" : "All current"}
+          accent={totalLate > 0 ? T.red : T.green}
         />
         <KpiCard
           label="Monthly Income"
@@ -326,10 +326,10 @@ export default function PropertiesView() {
             </div>
           </div>
 
-          {totalLate PaymentsAmt > 0 && (
+          {totalLateAmt > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderTop: `1px solid ${T.border}` }}>
               <span style={{ fontSize: 12, color: T.text2 }}>Total Outstanding</span>
-              <Mono style={{ fontSize: 13, fontWeight: 700, color: T.red }}>{fc(totalLate PaymentsAmt)}</Mono>
+              <Mono style={{ fontSize: 13, fontWeight: 700, color: T.red }}>{fc(totalLateAmt)}</Mono>
             </div>
           )}
         </div>
