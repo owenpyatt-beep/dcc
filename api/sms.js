@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     return res.status(405).send("POST required");
   }
 
-  const ANTHROPIC_KEY = process.env.REACT_APP_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || process.env.REACT_APP_ANTHROPIC_API_KEY;
   const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
   const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
   const TWILIO_NUMBER = process.env.TWILIO_PHONE_NUMBER;
@@ -117,7 +117,7 @@ Keep response under 1500 characters for SMS delivery. No markdown formatting —
     return respondTwiml(res, answer);
   } catch (err) {
     console.error("SMS error:", err);
-    return respondTwiml(res, "Sorry, something went wrong. Try again in a moment.");
+    return respondTwiml(res, `Error: ${err.message}`);
   }
 }
 

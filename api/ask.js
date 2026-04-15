@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "question is required" });
   }
 
-  const ANTHROPIC_KEY = process.env.REACT_APP_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || process.env.REACT_APP_ANTHROPIC_API_KEY;
   if (!ANTHROPIC_KEY) {
     return res.status(500).json({ error: "Anthropic API key not configured" });
   }
