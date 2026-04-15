@@ -6,6 +6,7 @@ import {
 import { T } from "../data/jobs";
 import { fc, pct, short, Mono, Badge, StatusDot, ProgressBar, KpiCard, ChartTip } from "../utils/format";
 import { useJobs } from "../context/JobsContext";
+import AskBar from "./AskBar";
 
 const BAR_COLORS = [T.gold, T.blue, T.green, T.amber, "#a680d4"];
 
@@ -61,6 +62,11 @@ export default function PortfolioView({ onSelectManaged, onSelectBuild }) {
 
   return (
     <div>
+      {/* ── Search ─────────────────────────────────────── */}
+      <div style={{ marginBottom: 24 }}>
+        <AskBar />
+      </div>
+
       {/* ── Managed Properties Section ──────────────────── */}
       {managed.length > 0 && (
         <>
