@@ -68,10 +68,10 @@ const NAV = [
 ];
 
 const TITLES = {
-  portfolio: "Portfolio Overview",
-  properties: "Managed Properties",
-  draws: "Draw Management",
-  invoices: "Invoice Extraction",
+  portfolio: "Portfolio",
+  properties: "Properties",
+  draws: "Draws",
+  invoices: "Invoices",
 };
 
 export default function App() {
@@ -174,7 +174,7 @@ export default function App() {
                   <div style={{ fontSize: 12, fontWeight: 600, color: T.text1 }}>{p.shortName}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
                     <div style={{ width: 5, height: 5, borderRadius: "50%", background: occ >= 90 ? T.green : occ >= 75 ? T.amber : T.red }} />
-                    <span style={{ fontSize: 10, color: T.text3 }}>{p.occupiedUnits}/{p.totalUnits} units &middot; {occ}% occ</span>
+                    <span style={{ fontSize: 10, color: T.text3 }}>{occ}% occupied &middot; {p.occupiedUnits}/{p.totalUnits}</span>
                   </div>
                 </div>
               );

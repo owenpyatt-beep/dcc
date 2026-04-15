@@ -71,8 +71,8 @@ export default function PropertiesView() {
 
   const occPct = prop.totalUnits > 0 ? pct(prop.occupiedUnits, prop.totalUnits) : 0;
   const leasePct = prop.totalUnits > 0 ? pct(prop.leasedUnits, prop.totalUnits) : 0;
-  const totalDelinquent = prop.delinquent30 + prop.delinquent60;
-  const totalDelinquentAmt = prop.delinquentAmount30 + prop.delinquentAmount60;
+  const totalLate Payments = prop.delinquent30 + prop.delinquent60;
+  const totalLate PaymentsAmt = prop.delinquentAmount30 + prop.delinquentAmount60;
   const collectionRate = prop.monthlyIncome > 0 ? pct(prop.collectedIncome, prop.monthlyIncome) : 0;
 
   const set = (field, value) => updateProperty(prop.id, { [field]: value });
@@ -179,10 +179,10 @@ export default function PropertiesView() {
           accent={T.blue}
         />
         <KpiCard
-          label="Delinquent"
-          value={totalDelinquent > 0 ? `${totalDelinquent} units` : "0"}
-          sub={totalDelinquentAmt > 0 ? fc(totalDelinquentAmt) + " outstanding" : "No delinquencies"}
-          accent={totalDelinquent > 0 ? T.red : T.green}
+          label="Late Payments"
+          value={totalLate Payments > 0 ? `${totalLate Payments} units` : "0"}
+          sub={totalLate PaymentsAmt > 0 ? fc(totalLate PaymentsAmt) + " outstanding" : "All current"}
+          accent={totalLate Payments > 0 ? T.red : T.green}
         />
         <KpiCard
           label="Monthly Income"
@@ -258,10 +258,10 @@ export default function PropertiesView() {
           </div>
         </div>
 
-        {/* Delinquency */}
+        {/* Late Payments */}
         <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px" }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>
-            Delinquency
+            Late Payments
           </div>
 
           {/* 30+ days */}
@@ -326,10 +326,10 @@ export default function PropertiesView() {
             </div>
           </div>
 
-          {totalDelinquentAmt > 0 && (
+          {totalLate PaymentsAmt > 0 && (
             <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderTop: `1px solid ${T.border}` }}>
               <span style={{ fontSize: 12, color: T.text2 }}>Total Outstanding</span>
-              <Mono style={{ fontSize: 13, fontWeight: 700, color: T.red }}>{fc(totalDelinquentAmt)}</Mono>
+              <Mono style={{ fontSize: 13, fontWeight: 700, color: T.red }}>{fc(totalLate PaymentsAmt)}</Mono>
             </div>
           )}
         </div>
@@ -369,7 +369,7 @@ export default function PropertiesView() {
               { label: "Rental Income", value: prop.monthRentalIncome || prop.collectedIncome || 0, color: T.gold },
               { label: "Total Income", value: prop.monthTotalIncome || prop.monthlyIncome || 0, color: T.text0 },
               { label: "Expenses", value: prop.monthExpenses || 0, color: T.red },
-              { label: "NOI", value: prop.monthNOI || 0, color: T.green },
+              { label: "Net Income", value: prop.monthNOI || 0, color: T.green },
             ].map((s) => (
               <div key={s.label}>
                 <div style={fieldLabel}>{s.label}</div>
@@ -396,7 +396,7 @@ export default function PropertiesView() {
               { label: "Rental Income", value: prop.ytdRentalIncome || 0, color: T.gold },
               { label: "Total Income", value: prop.ytdTotalIncome || 0, color: T.text0 },
               { label: "Expenses", value: prop.ytdExpenses || 0, color: T.red },
-              { label: "NOI", value: prop.ytdNOI || 0, color: T.green },
+              { label: "Net Income", value: prop.ytdNOI || 0, color: T.green },
             ].map((s) => (
               <div key={s.label}>
                 <div style={fieldLabel}>{s.label}</div>

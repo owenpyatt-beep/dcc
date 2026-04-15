@@ -77,7 +77,7 @@ export default function PortfolioView({ onSelectManaged, onSelectBuild }) {
             <KpiCard label="Total Units" value={totalManagedUnits.toLocaleString()} sub={`${managed.length} properties`} accent={T.gold} />
             <KpiCard label="Occupancy" value={`${overallOccPct}%`} sub={`${totalOccupied} of ${totalManagedUnits} occupied`} accent={overallOccPct >= 90 ? T.green : T.amber} />
             <KpiCard label="Monthly Income" value={totalMonthlyIncome > 0 ? fc(totalMonthlyIncome) : "\u2014"} sub={totalMonthlyIncome > 0 ? `${pct(totalCollected, totalMonthlyIncome)}% collected` : "Not yet entered"} accent={T.gold} />
-            <KpiCard label="Delinquent" value={managed.reduce((s, p) => s + p.delinquent30 + p.delinquent60, 0) > 0 ? `${managed.reduce((s, p) => s + p.delinquent30 + p.delinquent60, 0)} units` : "0"} sub={fc(managed.reduce((s, p) => s + p.delinquentAmount30 + p.delinquentAmount60, 0)) + " outstanding"} accent={managed.reduce((s, p) => s + p.delinquent30 + p.delinquent60, 0) > 0 ? T.red : T.green} />
+            <KpiCard label="Late Payments" value={managed.reduce((s, p) => s + p.delinquent30 + p.delinquent60, 0) > 0 ? `${managed.reduce((s, p) => s + p.delinquent30 + p.delinquent60, 0)} units` : "0"} sub={fc(managed.reduce((s, p) => s + p.delinquentAmount30 + p.delinquentAmount60, 0)) + " outstanding"} accent={managed.reduce((s, p) => s + p.delinquent30 + p.delinquent60, 0) > 0 ? T.red : T.green} />
           </div>
           <div className="grid-2" style={{ marginBottom: 32 }}>
             {managed.map((prop) => {
@@ -146,16 +146,16 @@ export default function PortfolioView({ onSelectManaged, onSelectBuild }) {
             Active Builds
           </div>
           <div className="grid-4" style={{ marginBottom: 24 }}>
-            <KpiCard label="Total Loan Facility" value={short(totalLoan)} sub={`${builds.length} active builds`} accent={T.gold} />
-            <KpiCard label="Total Drawn" value={short(totalDrawn)} sub={totalLoan > 0 ? `${pct(totalDrawn, totalLoan)}% utilized` : "No draws yet"} accent={T.blue} />
-            <KpiCard label="Draws In-Flight" value={fc(totalPending)} sub="Pending" accent={T.amber} />
+            <KpiCard label="Total Loan" value={short(totalLoan)} sub={`${builds.length} active builds`} accent={T.gold} />
+            <KpiCard label="Total Drawn" value={short(totalDrawn)} sub={totalLoan > 0 ? `${pct(totalDrawn, totalLoan)}% of loan` : "No draws yet"} accent={T.blue} />
+            <KpiCard label="Pending Approval" value={fc(totalPending)} sub="Awaiting funding" accent={T.amber} />
             <KpiCard label="Total Funded" value={short(totalFunded)} sub={`${builds.reduce((s, j) => s + (j.draws || []).filter((d) => d.status === "funded").length, 0)} draws settled`} accent={T.green} />
           </div>
 
           {builds.length > 0 && loanData.length > 0 && (
             <div className="grid-chart" style={{ marginBottom: 18 }}>
               <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>Loan Utilization by Project</div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>Loan Balance by Project</div>
                 <ResponsiveContainer width="100%" height={Math.max(120, builds.length * 60)}>
                   <BarChart data={loanData} layout="vertical" barCategoryGap="35%">
                     <CartesianGrid horizontal={false} stroke={T.bg4} />
@@ -177,7 +177,7 @@ export default function PortfolioView({ onSelectManaged, onSelectBuild }) {
               </div>
               {combinedCashflow.length > 0 && (
                 <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>Draw Disbursements</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>Monthly Draws</div>
                   <ResponsiveContainer width="100%" height={180}>
                     <BarChart data={combinedCashflow} barCategoryGap="25%">
                       <CartesianGrid vertical={false} stroke={T.bg4} />

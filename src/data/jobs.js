@@ -101,7 +101,7 @@ export const SEED_PROPERTIES = [
 ];
 
 export const DRAW_STATUS = {
-  compiling: { label: "Compiling", color: T.amber, bg: T.amberDim },
+  compiling: { label: "Draft", color: T.amber, bg: T.amberDim },
   in_review: { label: "In Review", color: T.blue, bg: T.blueDim },
   submitted: { label: "Submitted", color: "#a680d4", bg: "rgba(166,128,212,0.12)" },
   funded: { label: "Funded", color: T.green, bg: T.greenDim },

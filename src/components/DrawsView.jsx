@@ -11,9 +11,9 @@ const NEXT_STAGE = {
   submitted: "funded",
 };
 const NEXT_LABEL = {
-  compiling: "Move to Review",
+  compiling: "Submit for Review",
   in_review: "Mark Submitted",
-  submitted: "Mark Funded",
+  submitted: "Mark as Funded",
 };
 
 const editInput = {
@@ -38,7 +38,7 @@ export default function DrawsView() {
   const [viewMode, setViewMode] = useState("vendor"); // "vendor" or "category"
   const job = builds.find((j) => j.id === selectedJob) || builds[0];
   const stageLabels = {
-    compiling: "Compiling",
+    compiling: "Draft",
     in_review: "In Review",
     submitted: "Submitted",
     funded: "Funded",
@@ -272,7 +272,7 @@ export default function DrawsView() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-              {["Draw", "Amount", "Invoices", "Accuracy", "Submitted", "Funded", "Status", ""].map((h) => (
+              {["Draw", "Amount", "Invoices", "Submitted", "Funded", "Status", ""].map((h) => (
                 <th key={h} style={{ padding: "10px 24px", textAlign: "left", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: T.text3 }}>{h}</th>
               ))}
             </tr>
@@ -298,13 +298,6 @@ export default function DrawsView() {
                   </td>
                   <td style={{ padding: "13px 24px" }}><Mono style={{ fontSize: 13, color: T.gold }}>{fc(d.amount)}</Mono></td>
                   <td style={{ padding: "13px 24px", fontSize: 12, color: T.text1 }}>{d.invoices}</td>
-                  <td style={{ padding: "13px 24px" }}>
-                    {d.accuracy ? (
-                      <Mono style={{ fontSize: 12, color: d.accuracy > 99.5 ? T.green : T.amber }}>{d.accuracy}%</Mono>
-                    ) : (
-                      <span style={{ color: T.text3 }}>—</span>
-                    )}
-                  </td>
                   <td style={{ padding: "13px 24px", fontSize: 12, color: T.text1 }}>{d.submitted || <span style={{ color: T.text3 }}>—</span>}</td>
                   <td style={{ padding: "13px 24px", fontSize: 12, color: d.funded ? T.green : T.text3 }}>{d.funded || "—"}</td>
                   <td style={{ padding: "13px 24px" }}><StatusDot status={d.status} /></td>

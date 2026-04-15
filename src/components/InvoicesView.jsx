@@ -796,37 +796,18 @@ export default function InvoicesView() {
                 marginBottom: 16,
               }}
             >
-              Extraction Stats
+              Invoice Summary
             </div>
             {[
               {
-                label: "Invoices Processed",
+                label: "Invoices Found",
                 value: extractionStats.count,
                 color: T.text0,
               },
               {
-                label: "Total Extracted",
+                label: "Total Amount",
                 value: fc(extractionStats.total),
                 color: T.gold,
-              },
-              {
-                label: "Accuracy",
-                value: extractionStats.accuracy
-                  ? `${extractionStats.accuracy}%`
-                  : extracted
-                  ? "Pending review"
-                  : "\u2014",
-                color: extractionStats.accuracy ? T.green : T.text2,
-              },
-              {
-                label: "Extraction Error",
-                value: extractionStats.accuracy
-                  ? fc(
-                      extractionStats.total *
-                        (1 - extractionStats.accuracy / 100)
-                    )
-                  : "\u2014",
-                color: T.text2,
               },
             ].map((s) => (
               <div
