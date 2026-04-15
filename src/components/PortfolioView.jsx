@@ -23,33 +23,36 @@ export default function PortfolioView({ onSelectManaged, onSelectBuild }) {
   const totalLoan = builds.reduce((s, j) => s + j.loanAmount, 0);
   const totalDrawn = builds.reduce((s, j) => s + j.drawnToDate, 0);
   const totalPending = builds.reduce(
-    (s, j) => s + j.draws.filter((d) => d.status !== "funded").reduce((ss, d) => ss + d.amount, 0),
+    (s, j) => s + (j.draws || []).filter((d) => d.status !== "funded").reduce((ss, d) => ss + d.amount, 0),
     0
   );
   const totalFunded = builds.reduce(
-    (s, j) => s + j.draws.filter((d) => d.status === "funded").reduce((ss, d) => ss + d.amount, 0),
+    (s, j) => s + (j.draws || []).filter((d) => d.status === "funded").reduce((ss, d) => ss + d.amount, 0),
     0
   );
 
-  const loanData = builds.map((j) => ({
-    name: j.shortName,
-    Drawn: j.drawnToDate,
-    Pending: j.draws.filter((d) => d.status !== "funded").reduce((ss, d) => ss + d.amount, 0),
-    Available: j.loanAmount - j.drawnToDate - j.draws.filter((d) => d.status !== "funded").reduce((ss, d) => ss + d.amount, 0),
-  }));
+  const loanData = builds.map((j) => {
+    const pending = (j.draws || []).filter((d) => d.status !== "funded").reduce((ss, d) => ss + d.amount, 0);
+    return {
+      name: j.shortName,
+      Drawn: j.drawnToDate,
+      Pending: pending,
+      Available: Math.max(0, j.loanAmount - j.drawnToDate - pending),
+    };
+  });
 
   const combinedCashflow = (() => {
     const allMonths = [];
     const seen = new Set();
     builds.forEach((j) =>
-      j.cashflow.forEach((r) => {
+      (j.cashflow || []).forEach((r) => {
         if (!seen.has(r.month)) { seen.add(r.month); allMonths.push(r.month); }
       })
     );
     return allMonths.map((m) => {
       const row = { month: m };
       builds.forEach((j) => {
-        const entry = j.cashflow.find((r) => r.month === m);
+        const entry = (j.cashflow || []).find((r) => r.month === m);
         row[j.shortName] = entry ? entry.drawn : 0;
       });
       return row;
@@ -140,7 +143,7 @@ export default function PortfolioView({ onSelectManaged, onSelectBuild }) {
             <KpiCard label="Total Loan Facility" value={short(totalLoan)} sub={`${builds.length} active builds`} accent={T.gold} />
             <KpiCard label="Total Drawn" value={short(totalDrawn)} sub={totalLoan > 0 ? `${pct(totalDrawn, totalLoan)}% utilized` : "No draws yet"} accent={T.blue} />
             <KpiCard label="Draws In-Flight" value={fc(totalPending)} sub="Pending" accent={T.amber} />
-            <KpiCard label="Total Funded" value={short(totalFunded)} sub={`${builds.reduce((s, j) => s + j.draws.filter((d) => d.status === "funded").length, 0)} draws settled`} accent={T.green} />
+            <KpiCard label="Total Funded" value={short(totalFunded)} sub={`${builds.reduce((s, j) => s + (j.draws || []).filter((d) => d.status === "funded").length, 0)} draws settled`} accent={T.green} />
           </div>
 
           {builds.length > 0 && loanData.length > 0 && (
@@ -188,7 +191,8 @@ export default function PortfolioView({ onSelectManaged, onSelectBuild }) {
           <div className="grid-2" style={{ gap: 18 }}>
             {builds.map((job) => {
               const drawn = job.loanAmount > 0 ? pct(job.drawnToDate, job.loanAmount) : 0;
-              const currentDraw = job.draws[job.draws.length - 1];
+              const draws = job.draws || [];
+              const currentDraw = draws[draws.length - 1];
               return (
                 <div
                   key={job.id}
@@ -218,8 +222,8 @@ export default function PortfolioView({ onSelectManaged, onSelectBuild }) {
                   <ProgressBar value={job.completion} max={100} color={T.blue} height={3} />
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 18 }}>
                     {[
-                      { label: "Current Draw", value: `#${currentDraw.num}`, sub: <StatusDot status={currentDraw.status} /> },
-                      { label: "Draw Total", value: fc(currentDraw.amount), sub: `${currentDraw.invoices} invoices` },
+                      { label: "Current Draw", value: currentDraw ? `#${currentDraw.num}` : "\u2014", sub: currentDraw ? <StatusDot status={currentDraw.status} /> : "No draws" },
+                      { label: "Draw Total", value: currentDraw ? fc(currentDraw.amount) : "$0", sub: currentDraw ? `${currentDraw.invoices} invoices` : "" },
                       { label: "Available", value: fc(job.loanAmount - job.drawnToDate), sub: "remaining" },
                     ].map((f) => (
                       <div key={f.label} style={{ background: T.bg3, borderRadius: 8, padding: "10px 12px" }}>

@@ -171,7 +171,7 @@ export default function DrawsView() {
       {/* ── Draw Kanban ──────────────────────────────── */}
       <div className="grid-4" style={{ marginBottom: 28 }}>
         {STAGE_ORDER.map((stage) => {
-          const draws = job.draws.filter((d) => d.status === stage);
+          const draws = (job.draws || []).filter((d) => d.status === stage);
           const ds = DRAW_STATUS[stage];
           return (
             <div
@@ -261,7 +261,7 @@ export default function DrawsView() {
             Draw History — {job.name}
           </div>
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: T.text2 }}>
-            {fc(job.draws.reduce((s, d) => s + d.amount, 0))} total &middot; {job.draws.length} draws
+            {fc((job.draws || []).reduce((s, d) => s + d.amount, 0))} total &middot; {(job.draws || []).length} draws
           </div>
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -273,10 +273,10 @@ export default function DrawsView() {
             </tr>
           </thead>
           <tbody>
-            {job.draws.map((d, i) => (
+            {(job.draws || []).map((d, i) => (
               <tr
                 key={d.num}
-                style={{ borderBottom: i < job.draws.length - 1 ? `1px solid ${T.bg3}` : "none" }}
+                style={{ borderBottom: i < (job.draws || []).length - 1 ? `1px solid ${T.bg3}` : "none" }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = T.bg3)}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >

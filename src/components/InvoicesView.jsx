@@ -12,7 +12,8 @@ export default function InvoicesView() {
   const { builds, commitExtraction } = useJobs();
   const [selectedJob, setSelectedJob] = useState(builds[0]?.id);
   const job = builds.find((j) => j.id === selectedJob) || builds[0];
-  const currentDraw = job?.draws[job.draws.length - 1];
+  const jobDraws = job?.draws || [];
+  const currentDraw = jobDraws[jobDraws.length - 1];
 
   const fileRef = useRef(null);
   const [extracting, setExtracting] = useState(false);

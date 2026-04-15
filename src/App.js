@@ -182,7 +182,8 @@ export default function App() {
           <button onClick={() => { setShowAddJob(true); setSidebarOpen(false); }} style={{ background: "transparent", border: "none", color: T.gold, fontSize: 14, cursor: "pointer", padding: "0 2px", lineHeight: 1 }} title="Add property">+</button>
         </div>
         {builds.map((j) => {
-          const currentDraw = j.draws[j.draws.length - 1];
+          const jDraws = j.draws || [];
+          const currentDraw = jDraws[jDraws.length - 1];
           return (
             <div key={j.id} style={{ padding: "8px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer", transition: "background 0.15s" }}
               onMouseEnter={(e) => (e.currentTarget.style.background = T.bg3)}
@@ -190,10 +191,14 @@ export default function App() {
               onClick={() => handleSelectBuild(j.id)}
             >
               <div style={{ fontSize: 12, fontWeight: 600, color: T.text1 }}>{j.shortName}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
-                <div style={{ width: 5, height: 5, borderRadius: "50%", background: DRAW_STATUS[currentDraw.status].color }} />
-                <span style={{ fontSize: 10, color: T.text3 }}>Draw #{currentDraw.num} &middot; {DRAW_STATUS[currentDraw.status].label}</span>
-              </div>
+              {currentDraw ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
+                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: DRAW_STATUS[currentDraw.status].color }} />
+                  <span style={{ fontSize: 10, color: T.text3 }}>Draw #{currentDraw.num} &middot; {DRAW_STATUS[currentDraw.status].label}</span>
+                </div>
+              ) : (
+                <div style={{ fontSize: 10, color: T.text3, marginTop: 3 }}>No draws</div>
+              )}
             </div>
           );
         })}
