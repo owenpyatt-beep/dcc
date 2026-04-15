@@ -1,319 +1,464 @@
-import React, { createContext, useContext, useReducer, useEffect } from "react";
-import { SEED_PROPERTIES } from "../data/jobs";
-
-const STORAGE_KEY = "debrecht_properties_v3";
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from "react";
+import { supabase } from "../utils/supabase";
 
 const JobsContext = createContext(null);
 
-function nextPropertyId(properties) {
-  const nums = properties.map((p) => parseInt(p.id.replace("P-", ""), 10) || 0);
-  return `P-${String(Math.max(0, ...nums) + 1).padStart(4, "0")}`;
-}
+const INITIAL_STATE = {
+  properties: [],
+  draws: {},       // keyed by property_id
+  invoices: {},    // keyed by draw_id
+  loading: true,
+  error: null,
+};
 
-function recomputeBuild(prop) {
-  if (prop.category !== "build") return prop;
-  const drawnToDate = prop.draws
-    .filter((d) => d.status === "funded")
-    .reduce((s, d) => s + d.amount, 0);
-  return { ...prop, drawnToDate };
-}
-
-function propertiesReducer(state, action) {
+function reducer(state, action) {
   switch (action.type) {
-    case "ADD_PROPERTY": {
-      const p = action.payload;
-      const id = nextPropertyId(state);
-      const shortName = p.shortName || p.name.split(/\s+/)[0];
+    case "SET_LOADING":
+      return { ...state, loading: action.payload };
 
-      if (p.category === "managed") {
-        return [
-          ...state,
-          {
-            id,
-            category: "managed",
-            name: p.name,
-            shortName,
-            address: p.address,
-            type: p.type || "Multi-Family",
-            totalUnits: parseInt(p.totalUnits, 10) || 0,
-            occupiedUnits: 0,
-            leasedUnits: 0,
-            delinquent30: 0,
-            delinquent60: 0,
-            delinquentAmount30: 0,
-            delinquentAmount60: 0,
-            monthlyIncome: 0,
-            collectedIncome: 0,
-          },
-        ];
-      }
+    case "SET_ERROR":
+      return { ...state, error: action.payload, loading: false };
 
-      // Build property
-      return [
+    case "LOAD_DATA":
+      return {
         ...state,
-        {
-          id,
-          category: "build",
-          name: p.name,
-          shortName,
-          address: p.address,
-          type: p.type || "Multi-Family",
-          totalProjectCost: parseFloat(p.totalProjectCost) || 0,
-          loanAmount: parseFloat(p.loanAmount) || 0,
-          equityRequired: parseFloat(p.equityRequired) || 0,
-          equityIn: 0,
-          drawnToDate: 0,
-          completion: 0,
-          foreman: "",
-          pm: "",
-          startDate: p.startDate || "",
-          estCompletion: p.estCompletion || "",
-          draws: [
-            {
-              num: 1,
-              status: "compiling",
-              amount: 0,
-              invoices: 0,
-              submitted: null,
-              funded: null,
-              accuracy: null,
-              extractedInvoices: null,
-            },
-          ],
-          tradeBreakdown: [],
-          cashflow: [],
-          hasLeasing: false,
-          totalUnits: 0,
-          totalBuildings: 0,
-          buildingsUnderCO: 0,
-          unitsReadyToLease: 0,
-          occupiedUnits: 0,
-          leasedUnits: 0,
-        },
-      ];
-    }
+        properties: action.payload.properties,
+        draws: action.payload.draws,
+        invoices: action.payload.invoices,
+        loading: false,
+        error: null,
+      };
 
-    case "UPDATE_PROPERTY": {
-      const { id, updates } = action.payload;
-      return state.map((p) => {
-        if (p.id !== id) return p;
-        const numFields = [
-          "totalUnits", "occupiedUnits", "leasedUnits",
-          "delinquent30", "delinquent60",
-          "delinquentAmount30", "delinquentAmount60",
-          "monthlyIncome", "collectedIncome",
-          "totalProjectCost", "loanAmount", "equityRequired", "equityIn",
-          "completion", "totalBuildings", "buildingsUnderCO",
-          "unitsReadyToLease",
-        ];
-        const cleaned = { ...updates };
-        numFields.forEach((f) => {
-          if (f in cleaned) cleaned[f] = parseFloat(cleaned[f]) || 0;
-        });
-        return { ...p, ...cleaned };
-      });
-    }
+    case "UPDATE_PROPERTIES":
+      return { ...state, properties: action.payload };
 
-    case "ADD_DRAW": {
-      const { jobId } = action.payload;
-      return state.map((p) => {
-        if (p.id !== jobId || p.category !== "build") return p;
-        const maxNum = p.draws.reduce((m, d) => Math.max(m, d.num), 0);
-        return {
-          ...p,
-          draws: [
-            ...p.draws,
-            {
-              num: maxNum + 1,
-              status: "compiling",
-              amount: 0,
-              invoices: 0,
-              submitted: null,
-              funded: null,
-              accuracy: null,
-              extractedInvoices: null,
-            },
-          ],
-        };
-      });
-    }
+    case "UPDATE_DRAWS":
+      return { ...state, draws: { ...state.draws, [action.payload.propertyId]: action.payload.draws } };
 
-    case "COMMIT_EXTRACTION": {
-      const { jobId, drawNum, invoices } = action.payload;
-      return state.map((p) => {
-        if (p.id !== jobId) return p;
-        const draws = p.draws.map((d) => {
-          if (d.num !== drawNum) return d;
-          const amount = invoices.reduce((s, inv) => s + inv.amountDue, 0);
-          return {
-            ...d,
-            extractedInvoices: invoices,
-            amount,
-            invoices: invoices.length,
-          };
-        });
-        const allInvoices = draws.flatMap((d) => d.extractedInvoices || []);
-        const tradeMap = {};
-        allInvoices.forEach((inv) => {
-          const cat = inv.tradeCategory || "Other";
-          tradeMap[cat] = (tradeMap[cat] || 0) + inv.amountDue;
-        });
-        const tradeBreakdown = Object.entries(tradeMap)
-          .map(([trade, amount]) => ({ trade, amount }))
-          .sort((a, b) => b.amount - a.amount);
-        const updated = {
-          ...p,
-          draws,
-          tradeBreakdown: tradeBreakdown.length > 0 ? tradeBreakdown : p.tradeBreakdown,
-        };
-        return recomputeBuild(updated);
-      });
-    }
-
-    case "SYNC_APPFOLIO": {
-      const { appfolioProperties } = action.payload;
-      let updated = [...state];
-
-      for (const ap of appfolioProperties) {
-        // Match by name (case-insensitive, trimmed)
-        const match = updated.find(
-          (p) =>
-            p.category === "managed" &&
-            p.name.toLowerCase().trim() === ap.name.toLowerCase().trim()
-        );
-
-        if (match) {
-          // Update existing managed property with Appfolio data
-          updated = updated.map((p) =>
-            p.id === match.id
-              ? {
-                  ...p,
-                  totalUnits: ap.totalUnits,
-                  occupiedUnits: ap.occupiedUnits,
-                  leasedUnits: ap.leasedUnits,
-                  monthlyIncome: ap.monthlyIncome,
-                  collectedIncome: ap.collectedIncome || p.collectedIncome,
-                  delinquent30: ap.delinquent30,
-                  delinquent60: ap.delinquent60,
-                  delinquentAmount30: ap.delinquentAmount30,
-                  delinquentAmount60: ap.delinquentAmount60,
-                  address: ap.address || p.address,
-                  lastSynced: new Date().toISOString(),
-                }
-              : p
-          );
-        } else {
-          // Create new managed property from Appfolio
-          const id = nextPropertyId(updated);
-          updated.push({
-            id,
-            category: "managed",
-            name: ap.name,
-            shortName: ap.name.split(/\s+/)[0],
-            address: ap.address || "",
-            type: ap.propertyType || "Multi-Family",
-            totalUnits: ap.totalUnits,
-            occupiedUnits: ap.occupiedUnits,
-            leasedUnits: ap.leasedUnits,
-            delinquent30: ap.delinquent30,
-            delinquent60: ap.delinquent60,
-            delinquentAmount30: ap.delinquentAmount30,
-            delinquentAmount60: ap.delinquentAmount60,
-            monthlyIncome: ap.monthlyIncome,
-            collectedIncome: ap.collectedIncome || 0,
-            lastSynced: new Date().toISOString(),
-          });
-        }
-      }
-
-      return updated;
-    }
-
-    case "UPDATE_DRAW_STATUS": {
-      const { jobId, drawNum, status, submitted, funded } = action.payload;
-      return state.map((p) => {
-        if (p.id !== jobId) return p;
-        const draws = p.draws.map((d) => {
-          if (d.num !== drawNum) return d;
-          return {
-            ...d,
-            status,
-            submitted: submitted !== undefined ? submitted : d.submitted,
-            funded: funded !== undefined ? funded : d.funded,
-          };
-        });
-        let updated = recomputeBuild({ ...p, draws });
-
-        // Auto-compute cashflow when a draw is funded
-        if (status === "funded") {
-          const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-          const fundedDraw = draws.find((d) => d.num === drawNum);
-          const drawAmount = fundedDraw ? fundedDraw.amount : 0;
-          const fundedDate = funded || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-          const monthKey = monthNames[new Date(fundedDate).getMonth()] || monthNames[new Date().getMonth()];
-
-          let cashflow = [...(updated.cashflow || [])];
-          const existing = cashflow.find((c) => c.month === monthKey);
-          if (existing) {
-            cashflow = cashflow.map((c) =>
-              c.month === monthKey ? { ...c, drawn: c.drawn + drawAmount } : c
-            );
-          } else {
-            cashflow.push({ month: monthKey, drawn: drawAmount, cumulative: 0 });
-          }
-          // Recalculate cumulative
-          let cum = 0;
-          cashflow = cashflow.map((c) => {
-            cum += c.drawn;
-            return { ...c, cumulative: cum };
-          });
-          updated = { ...updated, cashflow };
-        }
-
-        return updated;
-      });
-    }
+    case "UPDATE_INVOICES":
+      return { ...state, invoices: { ...state.invoices, [action.payload.drawId]: action.payload.invoices } };
 
     default:
       return state;
   }
 }
 
-function loadInitialState() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch (_) {}
-  return SEED_PROPERTIES;
+// ── Helpers to convert DB rows to frontend shape ──────
+function dbToProperty(row) {
+  return {
+    id: row.id,
+    category: row.category,
+    name: row.name,
+    shortName: row.short_name,
+    address: row.address,
+    type: row.type,
+    // managed
+    totalUnits: row.total_units || 0,
+    occupiedUnits: row.occupied_units || 0,
+    leasedUnits: row.leased_units || 0,
+    delinquent30: row.delinquent_30 || 0,
+    delinquent60: row.delinquent_60 || 0,
+    delinquentAmount30: parseFloat(row.delinquent_amount_30) || 0,
+    delinquentAmount60: parseFloat(row.delinquent_amount_60) || 0,
+    monthlyIncome: parseFloat(row.monthly_income) || 0,
+    collectedIncome: parseFloat(row.collected_income) || 0,
+    vacantRented: row.vacant_rented || 0,
+    vacantUnrented: row.vacant_unrented || 0,
+    noticeRented: row.notice_rented || 0,
+    noticeUnrented: row.notice_unrented || 0,
+    monthRentalIncome: parseFloat(row.month_rental_income) || 0,
+    monthTotalIncome: parseFloat(row.month_total_income) || 0,
+    monthExpenses: parseFloat(row.month_expenses) || 0,
+    monthNOI: parseFloat(row.month_noi) || 0,
+    ytdRentalIncome: parseFloat(row.ytd_rental_income) || 0,
+    ytdTotalIncome: parseFloat(row.ytd_total_income) || 0,
+    ytdExpenses: parseFloat(row.ytd_expenses) || 0,
+    ytdNOI: parseFloat(row.ytd_noi) || 0,
+    lastSynced: row.last_synced,
+    // build
+    totalProjectCost: parseFloat(row.total_project_cost) || 0,
+    loanAmount: parseFloat(row.loan_amount) || 0,
+    equityRequired: parseFloat(row.equity_required) || 0,
+    equityIn: parseFloat(row.equity_in) || 0,
+    drawnToDate: parseFloat(row.drawn_to_date) || 0,
+    completion: row.completion || 0,
+    foreman: row.foreman || "",
+    pm: row.pm || "",
+    startDate: row.start_date || "",
+    estCompletion: row.est_completion || "",
+    hasLeasing: row.has_leasing || false,
+    totalBuildings: row.total_buildings || 0,
+    buildingsUnderCO: row.buildings_under_co || 0,
+    unitsReadyToLease: row.units_ready_to_lease || 0,
+  };
 }
 
+function dbToDraw(row) {
+  return {
+    id: row.id,
+    propertyId: row.property_id,
+    num: row.num,
+    status: row.status,
+    amount: parseFloat(row.amount) || 0,
+    invoices: row.invoice_count || 0,
+    submitted: row.submitted_date,
+    funded: row.funded_date,
+    accuracy: row.accuracy ? parseFloat(row.accuracy) : null,
+  };
+}
+
+function dbToInvoice(row) {
+  return {
+    id: row.id,
+    drawId: row.draw_id,
+    propertyId: row.property_id,
+    vendor: row.vendor,
+    invoiceNumber: row.invoice_number,
+    invoiceDate: row.invoice_date,
+    amountDue: parseFloat(row.amount_due) || 0,
+    jobName: row.job_name,
+    tradeCategory: row.trade_category,
+    invoiceType: row.invoice_type,
+    missingDataFlag: row.missing_data_flag,
+  };
+}
+
+// ── Provider ──────────────────────────────────────────
 export function JobsProvider({ children }) {
-  const [properties, dispatch] = useReducer(propertiesReducer, null, loadInitialState);
+  const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
+
+  // Load all data on mount
+  const loadData = useCallback(async () => {
+    dispatch({ type: "SET_LOADING", payload: true });
+    try {
+      const [propRes, drawRes] = await Promise.all([
+        supabase.from("properties").select("*").order("created_at"),
+        supabase.from("draws").select("*").order("num"),
+      ]);
+
+      if (propRes.error) throw propRes.error;
+      if (drawRes.error) throw drawRes.error;
+
+      const properties = propRes.data.map(dbToProperty);
+
+      // Group draws by property_id
+      const draws = {};
+      for (const row of drawRes.data) {
+        const pid = row.property_id;
+        if (!draws[pid]) draws[pid] = [];
+        draws[pid].push(dbToDraw(row));
+      }
+
+      // Attach draws to build properties for compatibility
+      const propertiesWithDraws = properties.map((p) => {
+        if (p.category === "build") {
+          return { ...p, draws: draws[p.id] || [] };
+        }
+        return p;
+      });
+
+      dispatch({
+        type: "LOAD_DATA",
+        payload: { properties: propertiesWithDraws, draws, invoices: {} },
+      });
+    } catch (err) {
+      console.error("Failed to load data:", err);
+      dispatch({ type: "SET_ERROR", payload: err.message });
+    }
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(properties));
-  }, [properties]);
+    loadData();
+  }, [loadData]);
 
-  const builds = properties.filter((p) => p.category === "build");
-  const managed = properties.filter((p) => p.category === "managed");
+  // ── Actions ─────────────────────────────────────────
+  const addProperty = async (payload) => {
+    const isManaged = payload.category === "managed";
+    const shortName = payload.shortName || payload.name.split(/\s+/)[0];
+
+    const insert = {
+      category: payload.category,
+      name: payload.name,
+      short_name: shortName,
+      address: payload.address,
+      type: payload.type || "Multi-Family",
+    };
+
+    if (isManaged) {
+      insert.total_units = parseInt(payload.totalUnits, 10) || 0;
+    } else {
+      insert.total_project_cost = parseFloat(payload.totalProjectCost) || 0;
+      insert.loan_amount = parseFloat(payload.loanAmount) || 0;
+      insert.equity_required = parseFloat(payload.equityRequired) || 0;
+      insert.start_date = payload.startDate || "";
+      insert.est_completion = payload.estCompletion || "";
+    }
+
+    const { data, error } = await supabase
+      .from("properties")
+      .insert(insert)
+      .select()
+      .single();
+
+    if (error) { console.error("Add property error:", error); return; }
+
+    // Create first draw for build properties
+    if (!isManaged) {
+      await supabase.from("draws").insert({
+        property_id: data.id,
+        num: 1,
+        status: "compiling",
+        amount: 0,
+        invoice_count: 0,
+      });
+    }
+
+    await loadData();
+  };
+
+  const updateProperty = async (id, updates) => {
+    // Convert camelCase to snake_case for DB
+    const dbUpdates = {};
+    const mapping = {
+      totalUnits: "total_units", occupiedUnits: "occupied_units", leasedUnits: "leased_units",
+      delinquent30: "delinquent_30", delinquent60: "delinquent_60",
+      delinquentAmount30: "delinquent_amount_30", delinquentAmount60: "delinquent_amount_60",
+      monthlyIncome: "monthly_income", collectedIncome: "collected_income",
+      totalProjectCost: "total_project_cost", loanAmount: "loan_amount",
+      equityRequired: "equity_required", equityIn: "equity_in",
+      completion: "completion", totalBuildings: "total_buildings",
+      buildingsUnderCO: "buildings_under_co", unitsReadyToLease: "units_ready_to_lease",
+      vacantRented: "vacant_rented", vacantUnrented: "vacant_unrented",
+      noticeRented: "notice_rented", noticeUnrented: "notice_unrented",
+      monthRentalIncome: "month_rental_income", monthTotalIncome: "month_total_income",
+      monthExpenses: "month_expenses", monthNOI: "month_noi",
+      ytdRentalIncome: "ytd_rental_income", ytdTotalIncome: "ytd_total_income",
+      ytdExpenses: "ytd_expenses", ytdNOI: "ytd_noi",
+      startDate: "start_date", estCompletion: "est_completion",
+      foreman: "foreman", pm: "pm",
+    };
+
+    for (const [key, val] of Object.entries(updates)) {
+      const dbKey = mapping[key] || key;
+      dbUpdates[dbKey] = val;
+    }
+
+    const { error } = await supabase
+      .from("properties")
+      .update(dbUpdates)
+      .eq("id", id);
+
+    if (error) { console.error("Update property error:", error); return; }
+    await loadData();
+  };
+
+  const addDraw = async (propertyId) => {
+    const currentDraws = state.draws[propertyId] || [];
+    const maxNum = currentDraws.reduce((m, d) => Math.max(m, d.num), 0);
+
+    const { error } = await supabase.from("draws").insert({
+      property_id: propertyId,
+      num: maxNum + 1,
+      status: "compiling",
+      amount: 0,
+      invoice_count: 0,
+    });
+
+    if (error) { console.error("Add draw error:", error); return; }
+    await loadData();
+  };
+
+  const updateDrawStatus = async (propertyId, drawNum, status, extra = {}) => {
+    const draws = state.draws[propertyId] || [];
+    const draw = draws.find((d) => d.num === drawNum);
+    if (!draw) return;
+
+    const updates = { status };
+    if (extra.submitted) updates.submitted_date = extra.submitted;
+    if (extra.funded) updates.funded_date = extra.funded;
+
+    const { error } = await supabase
+      .from("draws")
+      .update(updates)
+      .eq("id", draw.id);
+
+    if (error) { console.error("Update draw status error:", error); return; }
+
+    // If funded, recompute drawn_to_date
+    if (status === "funded") {
+      const allDraws = draws.map((d) =>
+        d.id === draw.id ? { ...d, status: "funded", amount: d.amount } : d
+      );
+      const drawnToDate = allDraws
+        .filter((d) => d.status === "funded")
+        .reduce((s, d) => s + d.amount, 0);
+
+      await supabase
+        .from("properties")
+        .update({ drawn_to_date: drawnToDate })
+        .eq("id", propertyId);
+
+      // Add cashflow entry
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const monthKey = monthNames[new Date().getMonth()];
+
+      const { data: existingCf } = await supabase
+        .from("cashflow")
+        .select("*")
+        .eq("property_id", propertyId)
+        .eq("month", monthKey)
+        .single();
+
+      if (existingCf) {
+        await supabase
+          .from("cashflow")
+          .update({ drawn: existingCf.drawn + draw.amount })
+          .eq("id", existingCf.id);
+      } else {
+        await supabase.from("cashflow").insert({
+          property_id: propertyId,
+          month: monthKey,
+          drawn: draw.amount,
+          cumulative: 0,
+        });
+      }
+    }
+
+    await loadData();
+  };
+
+  const commitExtraction = async (propertyId, drawNum, extractedInvoices) => {
+    const draws = state.draws[propertyId] || [];
+    const draw = draws.find((d) => d.num === drawNum);
+    if (!draw) return;
+
+    const totalAmount = extractedInvoices.reduce((s, inv) => s + inv.amountDue, 0);
+
+    // Update draw amount and count
+    await supabase
+      .from("draws")
+      .update({
+        amount: totalAmount,
+        invoice_count: extractedInvoices.length,
+      })
+      .eq("id", draw.id);
+
+    // Delete old invoices for this draw and insert new ones
+    await supabase.from("invoices").delete().eq("draw_id", draw.id);
+
+    const invoiceRows = extractedInvoices.map((inv) => ({
+      draw_id: draw.id,
+      property_id: propertyId,
+      vendor: inv.vendor,
+      invoice_number: inv.invoiceNumber,
+      invoice_date: inv.invoiceDate,
+      amount_due: inv.amountDue,
+      job_name: inv.jobName,
+      trade_category: inv.tradeCategory,
+      invoice_type: inv.invoiceType || "standard",
+      missing_data_flag: inv.missingDataFlag,
+    }));
+
+    if (invoiceRows.length > 0) {
+      await supabase.from("invoices").insert(invoiceRows);
+    }
+
+    // Log the extraction
+    await supabase.from("extraction_logs").insert({
+      draw_id: draw.id,
+      property_id: propertyId,
+      invoice_count: extractedInvoices.length,
+      total_amount: totalAmount,
+      model: "claude-sonnet-4-20250514",
+    });
+
+    await loadData();
+  };
+
+  const syncAppfolio = async (appfolioProperties) => {
+    for (const ap of appfolioProperties) {
+      // Find matching managed property by name
+      const match = state.properties.find(
+        (p) =>
+          p.category === "managed" &&
+          p.name.toLowerCase().trim() === ap.name.toLowerCase().trim()
+      );
+
+      if (match) {
+        await supabase
+          .from("properties")
+          .update({
+            total_units: ap.totalUnits,
+            occupied_units: ap.occupiedUnits,
+            leased_units: ap.leasedUnits,
+            monthly_income: ap.monthlyIncome,
+            collected_income: ap.collectedIncome || 0,
+            delinquent_30: ap.delinquent30,
+            delinquent_60: ap.delinquent60,
+            delinquent_amount_30: ap.delinquentAmount30,
+            delinquent_amount_60: ap.delinquentAmount60,
+            address: ap.address || match.address,
+            last_synced: new Date().toISOString(),
+          })
+          .eq("id", match.id);
+      } else {
+        await supabase.from("properties").insert({
+          category: "managed",
+          name: ap.name,
+          short_name: ap.name.split(/\s+/)[0],
+          address: ap.address || "",
+          type: ap.propertyType || "Multi-Family",
+          total_units: ap.totalUnits,
+          occupied_units: ap.occupiedUnits,
+          leased_units: ap.leasedUnits,
+          delinquent_30: ap.delinquent30,
+          delinquent_60: ap.delinquent60,
+          delinquent_amount_30: ap.delinquentAmount30,
+          delinquent_amount_60: ap.delinquentAmount60,
+          monthly_income: ap.monthlyIncome,
+          collected_income: ap.collectedIncome || 0,
+          last_synced: new Date().toISOString(),
+        });
+      }
+    }
+
+    await loadData();
+  };
+
+  // Fetch invoices for a specific draw (on demand)
+  const loadDrawInvoices = async (drawId) => {
+    const { data, error } = await supabase
+      .from("invoices")
+      .select("*")
+      .eq("draw_id", drawId)
+      .order("created_at");
+
+    if (error) { console.error("Load invoices error:", error); return []; }
+    const invoices = data.map(dbToInvoice);
+    dispatch({ type: "UPDATE_INVOICES", payload: { drawId, invoices } });
+    return invoices;
+  };
+
+  // ── Derived data ────────────────────────────────────
+  const builds = state.properties.filter((p) => p.category === "build");
+  const managed = state.properties.filter((p) => p.category === "managed");
 
   const ctx = {
-    properties,
+    properties: state.properties,
     builds,
     managed,
-    addProperty: (payload) => dispatch({ type: "ADD_PROPERTY", payload }),
-    updateProperty: (id, updates) =>
-      dispatch({ type: "UPDATE_PROPERTY", payload: { id, updates } }),
-    addDraw: (jobId) => dispatch({ type: "ADD_DRAW", payload: { jobId } }),
-    commitExtraction: (jobId, drawNum, invoices) =>
-      dispatch({ type: "COMMIT_EXTRACTION", payload: { jobId, drawNum, invoices } }),
-    updateDrawStatus: (jobId, drawNum, status, extra = {}) =>
-      dispatch({ type: "UPDATE_DRAW_STATUS", payload: { jobId, drawNum, status, ...extra } }),
-    syncAppfolio: (appfolioProperties) =>
-      dispatch({ type: "SYNC_APPFOLIO", payload: { appfolioProperties } }),
+    draws: state.draws,
+    invoicesByDraw: state.invoices,
+    loading: state.loading,
+    error: state.error,
+    addProperty,
+    updateProperty,
+    addDraw,
+    updateDrawStatus,
+    commitExtraction,
+    syncAppfolio,
+    loadDrawInvoices,
+    reload: loadData,
   };
 
   return <JobsContext.Provider value={ctx}>{children}</JobsContext.Provider>;
