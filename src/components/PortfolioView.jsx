@@ -123,7 +123,7 @@ export default function PortfolioView({ onSelectManaged, onSelectBuild }) {
                     {[
                       { label: "Units", value: prop.totalUnits, sub: prop.type },
                       { label: "Income", value: prop.monthlyIncome > 0 ? fc(prop.monthlyIncome) : "\u2014", sub: "monthly" },
-                      { label: "Delinquent", value: prop.delinquent30 + prop.delinquent60, sub: prop.delinquent30 + prop.delinquent60 > 0 ? fc(prop.delinquentAmount30 + prop.delinquentAmount60) : "none" },
+                      { label: "Late", value: prop.delinquent30 + prop.delinquent60, sub: prop.delinquent30 + prop.delinquent60 > 0 ? fc(prop.delinquentAmount30 + prop.delinquentAmount60) : "all current" },
                     ].map((f) => (
                       <div key={f.label} style={{ background: T.bg3, borderRadius: 8, padding: "10px 12px" }}>
                         <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 6 }}>{f.label}</div>
@@ -212,7 +212,7 @@ export default function PortfolioView({ onSelectManaged, onSelectBuild }) {
                       <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 17, fontWeight: 700, color: T.text0, letterSpacing: "-0.01em" }}>{job.name}</div>
                       <div style={{ fontSize: 11, color: T.text2, marginTop: 3 }}>{job.address}</div>
                     </div>
-                    <Badge label={job.id} color={T.text2} bg={T.bg3} />
+                    <Badge label={job.type} color={T.text2} bg={T.bg3} />
                   </div>
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 6 }}>

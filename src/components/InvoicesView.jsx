@@ -21,7 +21,20 @@ export default function InvoicesView() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
 
-  if (!job || !currentDraw) return null;
+  if (!job) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", color: T.text3, fontSize: 14 }}>
+        No build properties yet — add one to start uploading invoices.
+      </div>
+    );
+  }
+  if (!currentDraw) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", color: T.text3, fontSize: 14 }}>
+        No draws for {job.shortName} — create a draw first from the Draws tab.
+      </div>
+    );
+  }
 
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
