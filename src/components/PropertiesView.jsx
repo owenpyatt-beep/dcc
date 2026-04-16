@@ -33,10 +33,15 @@ const wideInput = {
   fontFamily: "'DM Sans', sans-serif",
 };
 
-export default function PropertiesView() {
+export default function PropertiesView({ selectedId: initialId }) {
   const { managed, updateProperty, syncAppfolio } = useJobs();
-  const [selectedId, setSelectedId] = useState(managed[0]?.id);
+  const [selectedId, setSelectedId] = useState(initialId || managed[0]?.id);
   const prop = managed.find((p) => p.id === selectedId) || managed[0];
+
+  // Update when sidebar changes selection
+  React.useEffect(() => {
+    if (initialId) setSelectedId(initialId);
+  }, [initialId]);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState(null);
   const [syncSuccess, setSyncSuccess] = useState(null);

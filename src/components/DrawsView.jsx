@@ -29,10 +29,18 @@ const editInput = {
   textAlign: "right",
 };
 
-export default function DrawsView() {
+export default function DrawsView({ selectedId }) {
   const { builds, addDraw, updateDrawStatus, updateProperty } = useJobs();
-  const [selectedJob, setSelectedJob] = useState(builds[0]?.id);
+  const [selectedJob, setSelectedJob] = useState(selectedId || builds[0]?.id);
   const [selectedDraw, setSelectedDraw] = useState(null);
+
+  // When sidebar changes the selected build, update internal state
+  useEffect(() => {
+    if (selectedId) {
+      setSelectedJob(selectedId);
+      setSelectedDraw(null);
+    }
+  }, [selectedId]);
   const [drawInvoices, setDrawInvoices] = useState([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [viewMode, setViewMode] = useState("vendor"); // "vendor" or "category"

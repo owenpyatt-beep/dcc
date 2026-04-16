@@ -78,6 +78,8 @@ export default function App() {
   const path = window.location.pathname;
   const { properties, builds, managed, addProperty, loading, error: dataError } = useJobs();
   const [view, setView] = useState("portfolio");
+  const [selectedBuildId, setSelectedBuildId] = useState(null);
+  const [selectedManagedId, setSelectedManagedId] = useState(null);
   const [showAddJob, setShowAddJob] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -109,11 +111,13 @@ export default function App() {
   }
 
   const handleSelectManaged = (id) => {
+    setSelectedManagedId(id);
     setView("properties");
     setSidebarOpen(false);
   };
 
   const handleSelectBuild = (id) => {
+    setSelectedBuildId(id);
     setView("draws");
     setSidebarOpen(false);
   };
@@ -292,8 +296,8 @@ export default function App() {
         {/* Content */}
         <main style={{ flex: 1, padding: isMobile ? "16px" : "28px 32px", overflowY: "auto" }}>
           {view === "portfolio" && <PortfolioView onSelectManaged={handleSelectManaged} onSelectBuild={handleSelectBuild} />}
-          {view === "properties" && <PropertiesView />}
-          {view === "draws" && <DrawsView />}
+          {view === "properties" && <PropertiesView selectedId={selectedManagedId} />}
+          {view === "draws" && <DrawsView selectedId={selectedBuildId} />}
           {view === "invoices" && <InvoicesView />}
         </main>
       </div>
