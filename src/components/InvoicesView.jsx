@@ -98,11 +98,11 @@ export default function InvoicesView() {
     : null;
 
   const savedInvoices = currentDraw.extractedInvoices;
-  const staticBreakdown = job.tradeBreakdown;
+  const staticBreakdown = job.tradeBreakdown || [];
   const displayData = tradeGroups
     ? tradeGroups.map((g) => ({ trade: g.trade, amount: g.amount }))
     : staticBreakdown;
-  const displayTotal = displayData.reduce((s, t) => s + t.amount, 0);
+  const displayTotal = (displayData || []).reduce((s, t) => s + t.amount, 0);
 
   const extractionStats = extracted
     ? {
