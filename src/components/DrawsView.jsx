@@ -174,10 +174,11 @@ export default function DrawsView({ selectedId }) {
       )}
 
       {/* ── Build Financials ─────────────────────────── */}
-      <div className="grid-4" style={{ marginBottom: 24 }}>
+      <div className="grid-5" style={{ marginBottom: 24 }}>
         <KpiCard label="Total Project Cost" value={job.totalProjectCost > 0 ? short(job.totalProjectCost) : "\u2014"} sub={job.loanAmount > 0 ? `Loan: ${short(job.loanAmount)}` : ""} accent={T.gold} />
         <KpiCard label="Drawn to Date" value={short(job.drawnToDate)} sub={job.totalProjectCost > 0 ? `${pct(job.drawnToDate, job.totalProjectCost)}% of project` : ""} accent={T.blue} />
-        <KpiCard label="Available" value={short(Math.max(0, job.totalProjectCost - job.drawnToDate))} sub="remaining on project" accent={T.green} />
+        <KpiCard label="Loan Remaining" value={short(Math.max(0, job.loanAmount - job.drawnToDate))} sub={`of ${short(job.loanAmount)} loan`} accent={(job.loanAmount - job.drawnToDate) < 1000000 ? T.amber : T.green} />
+        <KpiCard label="Equity Remaining" value={short(Math.max(0, job.totalProjectCost - job.drawnToDate - Math.max(0, job.loanAmount - job.drawnToDate)))} sub="to complete project" accent={T.gold} />
         <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "20px 22px", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${T.blue}44, transparent)` }} />
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: T.text2, marginBottom: 8 }}>Completion</div>
