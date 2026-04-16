@@ -46,12 +46,29 @@ export default function InvoicesView() {
     try {
       const base64 = await fileToBase64(file);
       const invoices = await extractInvoices(base64);
-      setExtracted(
-        invoices.map((inv) => ({
-          ...inv,
-          tradeCategory: mapTrade(inv.tradeCategory),
-        }))
-      );
+
+      // Normalize trade categories
+      const normalized = invoices.map((inv) => ({
+        ...inv,
+        tradeCategory: mapTrade(inv.tradeCategory),
+      }));
+
+      // Check for duplicates against the database
+      try {
+        const dupRes = await fetch("/api/check-duplicates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ invoices: normalized }),
+        });
+        if (dupRes.ok) {
+          const { invoices: checked } = await dupRes.json();
+          setExtracted(checked);
+        } else {
+          setExtracted(normalized);
+        }
+      } catch (_) {
+        setExtracted(normalized);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -365,6 +382,29 @@ export default function InvoicesView() {
             </div>
           )}
 
+          {/* Duplicate warning banner */}
+          {extracted && extracted.some((inv) => inv.duplicate) && (
+            <div
+              style={{
+                background: T.amberDim,
+                border: `1px solid ${T.amber}44`,
+                borderRadius: 8,
+                padding: "12px 18px",
+                marginBottom: 18,
+                fontSize: 12,
+                color: T.amber,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <strong>{extracted.filter((i) => i.duplicate).length} possible duplicates</strong> found in previous draws — review flagged rows below before saving.
+            </div>
+          )}
+
           {/* Trade breakdown table */}
           <div
             style={{
@@ -614,11 +654,27 @@ export default function InvoicesView() {
                                 textAlign: "right",
                               }}
                             >
-                              <Badge
-                                label="Extracted"
-                                color={T.blue}
-                                bg={T.blueDim}
-                              />
+                              {inv.duplicate ? (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-end" }}>
+                                  <Badge
+                                    label={inv.duplicateExact ? "Duplicate" : "Possible Match"}
+                                    color={T.red}
+                                    bg={T.redDim}
+                                  />
+                                  {inv.duplicateRefs && inv.duplicateRefs[0] && (
+                                    <span style={{ fontSize: 9, color: T.text3, whiteSpace: "nowrap" }}>
+                                      Draw #{inv.duplicateRefs[0].drawNum}
+                                      {!inv.duplicateAmountMatches && " (amt diff)"}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <Badge
+                                  label="New"
+                                  color={T.green}
+                                  bg={T.greenDim}
+                                />
+                              )}
                             </td>
                           </tr>
                         );
