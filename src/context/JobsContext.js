@@ -264,7 +264,10 @@ export function JobsProvider({ children }) {
       invoice_count: 0,
     });
 
-    if (error) { console.error("Add draw error:", error); return; }
+    if (error) {
+      console.error("Add draw error:", error);
+      throw new Error(error.message);
+    }
     await loadData();
   };
 

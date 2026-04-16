@@ -33,6 +33,23 @@ export default function DrawsView({ selectedId }) {
   const { builds, addDraw, updateDrawStatus, updateProperty } = useJobs();
   const [selectedJob, setSelectedJob] = useState(selectedId || builds[0]?.id);
   const [selectedDraw, setSelectedDraw] = useState(null);
+  const [creatingDraw, setCreatingDraw] = useState(false);
+  const [newDrawMessage, setNewDrawMessage] = useState(null);
+
+  const handleNewDraw = async () => {
+    if (creatingDraw) return;
+    setCreatingDraw(true);
+    setNewDrawMessage(null);
+    try {
+      await addDraw(job.id);
+      setNewDrawMessage(`New draft draw created for ${job.shortName}`);
+      setTimeout(() => setNewDrawMessage(null), 3500);
+    } catch (err) {
+      setNewDrawMessage(`Error: ${err.message}`);
+    } finally {
+      setCreatingDraw(false);
+    }
+  };
 
   // When sidebar changes the selected build, update internal state
   useEffect(() => {
@@ -140,16 +157,23 @@ export default function DrawsView({ selectedId }) {
             {j.shortName}
           </button>
         ))}
-        <button onClick={() => addDraw(job.id)}
+        <button onClick={handleNewDraw} disabled={creatingDraw}
           style={{
             background: T.goldDim, border: `1px solid ${T.goldBorder}`, borderRadius: 7,
             color: T.gold, fontSize: 11, fontWeight: 600, padding: "6px 14px",
-            cursor: "pointer", marginLeft: 8, fontFamily: "inherit",
+            cursor: creatingDraw ? "wait" : "pointer", marginLeft: 8, fontFamily: "inherit",
+            opacity: creatingDraw ? 0.6 : 1,
           }}
         >
-          + New Draw
+          {creatingDraw ? "Creating..." : "+ New Draw"}
         </button>
       </div>
+
+      {newDrawMessage && (
+        <div style={{ background: newDrawMessage.startsWith("Error") ? T.redDim : T.greenDim, border: `1px solid ${newDrawMessage.startsWith("Error") ? T.red + "44" : T.green + "44"}`, borderRadius: 8, padding: "10px 16px", marginBottom: 18, fontSize: 12, color: newDrawMessage.startsWith("Error") ? T.red : T.green }}>
+          {newDrawMessage}
+        </div>
+      )}
 
       {/* ── Build Financials ─────────────────────────── */}
       <div className="grid-5" style={{ marginBottom: 24 }}>
