@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { T } from "../data/jobs";
 import { Mono } from "../utils/format";
+import { authFetch } from "../utils/supabase";
 
 export default function AskBar() {
   const [question, setQuestion] = useState("");
@@ -17,9 +18,8 @@ export default function AskBar() {
     setAnswer(null);
     setMeta(null);
     try {
-      const res = await fetch("/api/ask", {
+      const res = await authFetch("/api/ask", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: question.trim() }),
       });
       const data = await res.json();

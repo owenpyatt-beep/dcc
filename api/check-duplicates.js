@@ -4,6 +4,7 @@
 // Returns each invoice with a duplicate flag and reference to the original draw
 
 import { supabaseAdmin } from "./_supabase.js";
+import { verifyAuth } from "./_auth.js";
 
 function normalize(s) {
   return (s || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
@@ -22,6 +23,9 @@ function isFuzzyMatch(a, b) {
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST required" });
+
+  const user = await verifyAuth(req);
+  if (!user) return res.status(401).json({ error: "Authentication required" });
 
   const { invoices } = req.body;
   if (!Array.isArray(invoices)) return res.status(400).json({ error: "invoices array required" });

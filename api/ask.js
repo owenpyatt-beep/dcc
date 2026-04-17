@@ -5,18 +5,24 @@
 // returns a natural language answer.
 
 import { supabaseAdmin } from "./_supabase.js";
+import { verifyAuth } from "./_auth.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "POST required" });
   }
 
-  const { question } = req.body;
-  if (!question) {
-    return res.status(400).json({ error: "question is required" });
+  const user = await verifyAuth(req);
+  if (!user) {
+    return res.status(401).json({ error: "Authentication required" });
   }
 
-  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || process.env.REACT_APP_ANTHROPIC_API_KEY;
+  const { question } = req.body;
+  if (!question || question.length > 1000) {
+    return res.status(400).json({ error: "question is required (max 1000 chars)" });
+  }
+
+  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
   if (!ANTHROPIC_KEY) {
     return res.status(500).json({ error: "Anthropic API key not configured" });
   }

@@ -2,11 +2,13 @@ import React, { useState, useEffect } from "react";
 import { T, DRAW_STATUS } from "./data/jobs";
 import { pct } from "./utils/format";
 import { useJobs } from "./context/JobsContext";
+import { useAuth } from "./context/AuthContext";
 import PortfolioView from "./components/PortfolioView";
 import PropertiesView from "./components/PropertiesView";
 import DrawsView from "./components/DrawsView";
 import InvoicesView from "./components/InvoicesView";
 import AddJobModal from "./components/AddJobModal";
+import LoginPage from "./components/LoginPage";
 import PrivacyPage from "./components/PrivacyPage";
 import TermsPage from "./components/TermsPage";
 
@@ -76,6 +78,7 @@ const TITLES = {
 
 export default function App() {
   const path = window.location.pathname;
+  const { user, loading: authLoading, signOut } = useAuth();
   const { properties, builds, managed, addProperty, loading, error: dataError } = useJobs();
   const [view, setView] = useState("portfolio");
   const [selectedBuildId, setSelectedBuildId] = useState(null);
@@ -84,8 +87,24 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
 
+  // Public pages — no auth required
   if (path === "/privacy") return <PrivacyPage />;
   if (path === "/terms") return <TermsPage />;
+
+  // Auth loading
+  if (authLoading) {
+    return (
+      <div style={{ fontFamily: "'DM Sans', sans-serif", background: T.bg0, minHeight: "100vh", color: T.text0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: T.gold, marginBottom: 12 }}>DCC</div>
+          <div style={{ fontSize: 13, color: T.text1 }}>Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Not logged in — show login page
+  if (!user) return <LoginPage />;
 
   if (loading) {
     return (
@@ -289,7 +308,10 @@ export default function App() {
             </div>
           </div>
           {!isMobile && (
-            <button onClick={() => setShowAddJob(true)} style={{ background: T.goldDim, border: `1px solid ${T.goldBorder}`, borderRadius: 8, color: T.gold, fontSize: 12, fontWeight: 600, padding: "7px 16px", cursor: "pointer", letterSpacing: "0.04em", fontFamily: "inherit" }}>+ Add Property</button>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <button onClick={() => setShowAddJob(true)} style={{ background: T.goldDim, border: `1px solid ${T.goldBorder}`, borderRadius: 8, color: T.gold, fontSize: 12, fontWeight: 600, padding: "7px 16px", cursor: "pointer", letterSpacing: "0.04em", fontFamily: "inherit" }}>+ Add Property</button>
+              <button onClick={signOut} style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, color: T.text3, fontSize: 11, padding: "7px 14px", cursor: "pointer", fontFamily: "inherit" }}>Sign Out</button>
+            </div>
           )}
         </header>
 

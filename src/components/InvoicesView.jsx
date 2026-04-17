@@ -7,6 +7,7 @@ import { fc, pct, Mono, Badge, ChartTip, COLORS } from "../utils/format";
 import { extractInvoices, fileToBase64 } from "../utils/extraction";
 import { mapTrade, getTradeCategories } from "../utils/tradeMap";
 import { useJobs } from "../context/JobsContext";
+import { authFetch } from "../utils/supabase";
 
 export default function InvoicesView() {
   const { builds, commitExtraction } = useJobs();
@@ -55,9 +56,8 @@ export default function InvoicesView() {
 
       // Check for duplicates against the database
       try {
-        const dupRes = await fetch("/api/check-duplicates", {
+        const dupRes = await authFetch("/api/check-duplicates", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ invoices: normalized }),
         });
         if (dupRes.ok) {
