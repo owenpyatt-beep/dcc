@@ -1,47 +1,69 @@
 import React, { useState } from "react";
-import { T } from "../data/jobs";
-import { fc, pct, Mono, KpiCard } from "../utils/format";
+import { RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { fc, pct, Mono, KpiCard, ProgressBar } from "../utils/format";
 import { useJobs } from "../context/JobsContext";
 import { syncProperties } from "../utils/appfolio";
+import { Button } from "./ui/Button";
+import { Stamp } from "./ui/Typography";
+import { LED } from "./ui/LED";
+import { Label } from "./ui/Input";
 
-const fieldLabel = {
-  fontSize: 9,
-  fontWeight: 700,
-  letterSpacing: "0.1em",
-  textTransform: "uppercase",
-  color: T.text2,
-  marginBottom: 6,
-};
+function NumInput({ value, onChange, step, align = "right" }) {
+  return (
+    <input
+      type="number"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      step={step}
+      className={
+        "w-full rounded-md bg-chassis px-3 py-2 text-sm font-mono font-semibold text-ink shadow-recessed-sm border-none outline-none transition-shadow focus-visible:shadow-[inset_3px_3px_6px_#babecc,inset_-3px_-3px_6px_#ffffff,0_0_0_2px_var(--accent)] " +
+        (align === "right" ? "text-right" : "")
+      }
+    />
+  );
+}
 
-const editInput = {
-  background: T.bg4,
-  border: `1px solid ${T.border}`,
-  borderRadius: 4,
-  color: T.text0,
-  fontFamily: "'JetBrains Mono', monospace",
-  fontSize: 13,
-  padding: "6px 10px",
-  outline: "none",
-  width: 100,
-  textAlign: "right",
-};
+function PillTab({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={
+        "press px-5 py-2.5 rounded-lg text-[12px] font-mono uppercase tracking-[0.08em] font-bold transition-all " +
+        (active
+          ? "bg-chassis text-ink shadow-pressed"
+          : "text-label hover:text-ink")
+      }
+    >
+      {children}
+    </button>
+  );
+}
 
-const wideInput = {
-  ...editInput,
-  width: "100%",
-  textAlign: "left",
-  fontFamily: "'DM Sans', sans-serif",
-};
+function Panel({ title, children, className = "" }) {
+  return (
+    <div
+      className={
+        "rounded-2xl bg-chassis p-6 shadow-card relative overflow-hidden " +
+        className
+      }
+    >
+      <div className="flex items-center justify-between mb-5">
+        <Stamp>{title}</Stamp>
+      </div>
+      {children}
+    </div>
+  );
+}
 
 export default function PropertiesView({ selectedId: initialId }) {
   const { managed, updateProperty, syncAppfolio } = useJobs();
   const [selectedId, setSelectedId] = useState(initialId || managed[0]?.id);
   const prop = managed.find((p) => p.id === selectedId) || managed[0];
 
-  // Update when sidebar changes selection
   React.useEffect(() => {
     if (initialId) setSelectedId(initialId);
   }, [initialId]);
+
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState(null);
   const [syncSuccess, setSyncSuccess] = useState(null);
@@ -54,7 +76,9 @@ export default function PropertiesView({ selectedId: initialId }) {
       const result = await syncProperties();
       if (result.ok && result.properties) {
         syncAppfolio(result.properties);
-        setSyncSuccess(`Synced ${result.properties.length} properties from Appfolio`);
+        setSyncSuccess(
+          `Synced ${result.properties.length} properties from Appfolio`
+        );
         setTimeout(() => setSyncSuccess(null), 4000);
       } else {
         setSyncError(result.error || "Sync returned no data");
@@ -68,263 +92,263 @@ export default function PropertiesView({ selectedId: initialId }) {
 
   if (!prop) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", color: T.text3, fontSize: 14 }}>
-        No managed properties yet — add one from the sidebar.
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-chassis shadow-recessed-sm">
+            <LED color="amber" size={8} pulse />
+            <Stamp>No managed properties yet</Stamp>
+          </div>
+          <div className="mt-3 text-sm text-label">
+            Add one from the sidebar.
+          </div>
+        </div>
       </div>
     );
   }
 
-  const occPct = prop.totalUnits > 0 ? pct(prop.occupiedUnits, prop.totalUnits) : 0;
-  const leasePct = prop.totalUnits > 0 ? pct(prop.leasedUnits, prop.totalUnits) : 0;
+  const occPct =
+    prop.totalUnits > 0 ? pct(prop.occupiedUnits, prop.totalUnits) : 0;
+  const leasePct =
+    prop.totalUnits > 0 ? pct(prop.leasedUnits, prop.totalUnits) : 0;
   const totalLate = prop.delinquent30 + prop.delinquent60;
   const totalLateAmt = prop.delinquentAmount30 + prop.delinquentAmount60;
-  const collectionRate = prop.monthlyIncome > 0 ? pct(prop.collectedIncome, prop.monthlyIncome) : 0;
+  const collectionRate =
+    prop.monthlyIncome > 0 ? pct(prop.collectedIncome, prop.monthlyIncome) : 0;
 
   const set = (field, value) => updateProperty(prop.id, { [field]: value });
 
   return (
-    <div>
-      {/* Property selector */}
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          marginBottom: 24,
-          background: T.bg2,
-          borderRadius: 10,
-          padding: 4,
-          border: `1px solid ${T.border}`,
-          width: "fit-content",
-        }}
-      >
+    <div className="max-w-[1400px] mx-auto">
+      {/* Property selector tabs */}
+      <div className="inline-flex items-center gap-1 mb-6 p-1 rounded-xl bg-chassis shadow-recessed">
         {managed.map((p) => (
-          <button
+          <PillTab
             key={p.id}
+            active={selectedId === p.id}
             onClick={() => setSelectedId(p.id)}
-            style={{
-              background: selectedId === p.id ? T.bg4 : "transparent",
-              border: selectedId === p.id ? `1px solid ${T.border}` : "1px solid transparent",
-              color: selectedId === p.id ? T.text0 : T.text2,
-              fontSize: 12,
-              fontWeight: 600,
-              padding: "7px 18px",
-              borderRadius: 7,
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
           >
             {p.shortName}
-          </button>
+          </PillTab>
         ))}
       </div>
 
-      {/* Property header + sync */}
-      <div className="prop-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+      {/* Header + sync action */}
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
         <div>
-          <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 700, color: T.text0, letterSpacing: "-0.01em" }}>{prop.name}</div>
-          <div style={{ fontSize: 12, color: T.text2, marginTop: 3 }}>
-            {prop.address} &middot; {prop.type} &middot; {prop.totalUnits} units
+          <div className="text-2xl md:text-[26px] font-bold text-ink emboss tracking-tight">
+            {prop.name}
+          </div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] font-mono text-label">
+            <span>{prop.address}</span>
+            <span className="text-label/40">·</span>
+            <span>{prop.type}</span>
+            <span className="text-label/40">·</span>
+            <span>{prop.totalUnits} units</span>
             {prop.lastSynced && (
-              <span style={{ marginLeft: 12, color: T.text3 }}>
-                Last synced: {new Date(prop.lastSynced).toLocaleString()}
-              </span>
+              <>
+                <span className="text-label/40">·</span>
+                <span className="text-label/70">
+                  synced {new Date(prop.lastSynced).toLocaleString()}
+                </span>
+              </>
             )}
           </div>
         </div>
-        <button
+        <Button
+          variant="secondary"
+          size="md"
           onClick={handleSync}
           disabled={syncing}
-          style={{
-            background: T.blueDim,
-            border: `1px solid ${T.blue}44`,
-            borderRadius: 7,
-            color: T.blue,
-            fontSize: 11,
-            fontWeight: 600,
-            padding: "7px 16px",
-            cursor: syncing ? "wait" : "pointer",
-            fontFamily: "inherit",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            opacity: syncing ? 0.6 : 1,
-          }}
+          iconLeft={
+            <RefreshCw
+              className={"h-3.5 w-3.5 " + (syncing ? "animate-spin" : "")}
+              strokeWidth={2}
+            />
+          }
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={syncing ? { animation: "spin 1s linear infinite" } : {}}>
-            <path d="M4 12a8 8 0 0114.93-4M20 12a8 8 0 01-14.93 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            <path d="M20 4v4h-4M4 20v-4h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          {syncing ? "Syncing..." : "Sync from Appfolio"}
-        </button>
+          {syncing ? "Syncing..." : "Sync Appfolio"}
+        </Button>
       </div>
-      {syncing && <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>}
+
       {syncError && (
-        <div style={{ background: T.redDim, border: `1px solid ${T.red}44`, borderRadius: 8, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: T.red }}>
-          {syncError}
+        <div className="mb-4 flex items-center gap-3 rounded-xl px-4 py-3 bg-chassis shadow-recessed-sm">
+          <AlertTriangle className="h-4 w-4 text-[#ef4444]" />
+          <span className="font-mono text-xs text-[#b91c1c]">{syncError}</span>
         </div>
       )}
       {syncSuccess && (
-        <div style={{ background: T.greenDim, border: `1px solid ${T.green}44`, borderRadius: 8, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: T.green }}>
-          {syncSuccess}
+        <div className="mb-4 flex items-center gap-3 rounded-xl px-4 py-3 bg-chassis shadow-recessed-sm">
+          <CheckCircle2 className="h-4 w-4 text-[#22c55e]" />
+          <span className="font-mono text-xs text-[#15803d]">
+            {syncSuccess}
+          </span>
         </div>
       )}
 
-      {/* KPI row */}
-      <div className="grid-4" style={{ marginBottom: 24 }}>
+      <div className="grid-4 mb-6">
         <KpiCard
           label="Occupancy"
           value={`${occPct}%`}
           sub={`${prop.occupiedUnits} of ${prop.totalUnits} units`}
-          accent={occPct >= 90 ? T.green : occPct >= 75 ? T.amber : T.red}
+          accent={
+            occPct >= 90 ? "#22c55e" : occPct >= 75 ? "#f59e0b" : "#ef4444"
+          }
         />
         <KpiCard
           label="Lease Rate"
           value={`${leasePct}%`}
           sub={`${prop.leasedUnits} units under lease`}
-          accent={T.blue}
+          accent="#3b82f6"
         />
         <KpiCard
           label="Late Payments"
           value={totalLate > 0 ? `${totalLate} units` : "0"}
-          sub={totalLateAmt > 0 ? fc(totalLateAmt) + " outstanding" : "All current"}
-          accent={totalLate > 0 ? T.red : T.green}
+          sub={
+            totalLateAmt > 0 ? fc(totalLateAmt) + " outstanding" : "All current"
+          }
+          accent={totalLate > 0 ? "#ef4444" : "#22c55e"}
         />
         <KpiCard
           label="Monthly Income"
           value={prop.monthlyIncome > 0 ? fc(prop.monthlyIncome) : "$0"}
-          sub={prop.monthlyIncome > 0 ? `${collectionRate}% collected` : "Not yet entered"}
-          accent={T.gold}
+          sub={
+            prop.monthlyIncome > 0
+              ? `${collectionRate}% collected`
+              : "Not yet entered"
+          }
+          accent="#ff4757"
         />
       </div>
 
-      <div className="grid-2">
-        {/* Occupancy & Leasing */}
-        <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>
-            Occupancy & Leasing
+      <div className="grid-2 mb-6">
+        <Panel title="Occupancy & Leasing">
+          <div className="mb-5">
+            <div className="flex justify-between mb-2">
+              <Stamp className="text-[9px]">Occupancy</Stamp>
+              <Mono className="text-[11px] text-label">
+                {prop.occupiedUnits} / {prop.totalUnits}
+              </Mono>
+            </div>
+            <ProgressBar
+              value={prop.occupiedUnits}
+              max={prop.totalUnits || 1}
+              color={
+                occPct >= 90 ? "#22c55e" : occPct >= 75 ? "#f59e0b" : "#ef4444"
+              }
+              height={6}
+            />
           </div>
 
-          {/* Occupancy bar */}
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 6 }}>
-              <span style={{ color: T.text2 }}>Occupancy</span>
-              <Mono style={{ fontSize: 11, color: T.text1 }}>{prop.occupiedUnits} / {prop.totalUnits}</Mono>
+          <div className="mb-6">
+            <div className="flex justify-between mb-2">
+              <Stamp className="text-[9px]">Leased</Stamp>
+              <Mono className="text-[11px] text-label">
+                {prop.leasedUnits} / {prop.totalUnits}
+              </Mono>
             </div>
-            <div style={{ height: 6, borderRadius: 3, background: T.bg4, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${occPct}%`, borderRadius: 3, background: occPct >= 90 ? T.green : occPct >= 75 ? T.amber : T.red, transition: "width 0.5s" }} />
-            </div>
+            <ProgressBar
+              value={prop.leasedUnits}
+              max={prop.totalUnits || 1}
+              color="#3b82f6"
+              height={6}
+            />
           </div>
 
-          {/* Lease bar */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 6 }}>
-              <span style={{ color: T.text2 }}>Leased</span>
-              <Mono style={{ fontSize: 11, color: T.text1 }}>{prop.leasedUnits} / {prop.totalUnits}</Mono>
-            </div>
-            <div style={{ height: 6, borderRadius: 3, background: T.bg4, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${leasePct}%`, borderRadius: 3, background: T.blue, transition: "width 0.5s" }} />
-            </div>
-          </div>
-
-          {/* Editable fields */}
-          <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 18 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: T.text3, marginBottom: 14 }}>
-              Update Values
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <div className="pt-5 border-t border-[rgba(74,85,104,0.1)]">
+            <Stamp className="text-[9px] block mb-3">Update Values</Stamp>
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <div style={fieldLabel}>Total Units</div>
-                <input
-                  type="number"
+                <Label>Total</Label>
+                <NumInput
                   value={prop.totalUnits}
-                  onChange={(e) => set("totalUnits", e.target.value)}
-                  style={editInput}
+                  onChange={(v) => set("totalUnits", v)}
                 />
               </div>
               <div>
-                <div style={fieldLabel}>Occupied</div>
-                <input
-                  type="number"
+                <Label>Occupied</Label>
+                <NumInput
                   value={prop.occupiedUnits}
-                  onChange={(e) => set("occupiedUnits", e.target.value)}
-                  style={editInput}
+                  onChange={(v) => set("occupiedUnits", v)}
                 />
               </div>
               <div>
-                <div style={fieldLabel}>Leased</div>
-                <input
-                  type="number"
+                <Label>Leased</Label>
+                <NumInput
                   value={prop.leasedUnits}
-                  onChange={(e) => set("leasedUnits", e.target.value)}
-                  style={editInput}
+                  onChange={(v) => set("leasedUnits", v)}
                 />
               </div>
             </div>
           </div>
-        </div>
+        </Panel>
 
-        {/* Late Payments */}
-        <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>
-            Late Payments
-          </div>
-
-          {/* 30+ days */}
-          <div style={{ background: T.bg3, borderRadius: 8, padding: "14px 16px", marginBottom: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: T.amber }}>30+ Days Late</span>
-              <Mono style={{ fontSize: 14, fontWeight: 700, color: prop.delinquent30 > 0 ? T.amber : T.text3 }}>
+        <Panel title="Late Payments">
+          <div className="mb-3 rounded-xl bg-chassis p-4 shadow-recessed-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="flex items-center gap-2">
+                <LED color="amber" size={8} pulse={prop.delinquent30 > 0} />
+                <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-label">
+                  30+ Days Late
+                </span>
+              </span>
+              <Mono
+                className={
+                  "text-[15px] font-bold " +
+                  (prop.delinquent30 > 0 ? "text-[#b45309]" : "text-label")
+                }
+              >
                 {prop.delinquent30} units
               </Mono>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <div style={fieldLabel}>Units</div>
-                <input
-                  type="number"
+                <Label>Units</Label>
+                <NumInput
                   value={prop.delinquent30}
-                  onChange={(e) => set("delinquent30", e.target.value)}
-                  style={editInput}
+                  onChange={(v) => set("delinquent30", v)}
                 />
               </div>
               <div>
-                <div style={fieldLabel}>Amount</div>
-                <input
-                  type="number"
+                <Label>Amount ($)</Label>
+                <NumInput
                   value={prop.delinquentAmount30}
-                  onChange={(e) => set("delinquentAmount30", e.target.value)}
-                  style={editInput}
+                  onChange={(v) => set("delinquentAmount30", v)}
                   step="0.01"
                 />
               </div>
             </div>
           </div>
 
-          {/* 60+ days */}
-          <div style={{ background: T.bg3, borderRadius: 8, padding: "14px 16px", marginBottom: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: T.red }}>60+ Days Late</span>
-              <Mono style={{ fontSize: 14, fontWeight: 700, color: prop.delinquent60 > 0 ? T.red : T.text3 }}>
+          <div className="mb-5 rounded-xl bg-chassis p-4 shadow-recessed-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="flex items-center gap-2">
+                <LED color="red" size={8} pulse={prop.delinquent60 > 0} />
+                <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-label">
+                  60+ Days Late
+                </span>
+              </span>
+              <Mono
+                className={
+                  "text-[15px] font-bold " +
+                  (prop.delinquent60 > 0 ? "text-[#b91c1c]" : "text-label")
+                }
+              >
                 {prop.delinquent60} units
               </Mono>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <div style={fieldLabel}>Units</div>
-                <input
-                  type="number"
+                <Label>Units</Label>
+                <NumInput
                   value={prop.delinquent60}
-                  onChange={(e) => set("delinquent60", e.target.value)}
-                  style={editInput}
+                  onChange={(v) => set("delinquent60", v)}
                 />
               </div>
               <div>
-                <div style={fieldLabel}>Amount</div>
-                <input
-                  type="number"
+                <Label>Amount ($)</Label>
+                <NumInput
                   value={prop.delinquentAmount60}
-                  onChange={(e) => set("delinquentAmount60", e.target.value)}
-                  style={editInput}
+                  onChange={(v) => set("delinquentAmount60", v)}
                   step="0.01"
                 />
               </div>
@@ -332,84 +356,178 @@ export default function PropertiesView({ selectedId: initialId }) {
           </div>
 
           {totalLateAmt > 0 && (
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderTop: `1px solid ${T.border}` }}>
-              <span style={{ fontSize: 12, color: T.text2 }}>Total Outstanding</span>
-              <Mono style={{ fontSize: 13, fontWeight: 700, color: T.red }}>{fc(totalLateAmt)}</Mono>
+            <div className="flex justify-between items-center pt-3 border-t border-[rgba(74,85,104,0.1)]">
+              <Stamp>Total Outstanding</Stamp>
+              <Mono className="text-[15px] font-bold text-[#b91c1c]">
+                {fc(totalLateAmt)}
+              </Mono>
             </div>
           )}
-        </div>
+        </Panel>
       </div>
 
-      {/* Vacancy Pipeline */}
-      {(prop.vacantRented > 0 || prop.vacantUnrented > 0 || prop.noticeRented > 0 || prop.noticeUnrented > 0) && (
-        <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px", marginTop: 18 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>
-            Vacancy Pipeline
-          </div>
+      {(prop.vacantRented > 0 ||
+        prop.vacantUnrented > 0 ||
+        prop.noticeRented > 0 ||
+        prop.noticeUnrented > 0) && (
+        <Panel title="Vacancy Pipeline" className="mb-6">
           <div className="grid-4">
             {[
-              { label: "Vacant - Rented", value: prop.vacantRented || 0, color: T.green, sub: "Lease signed, pending move-in" },
-              { label: "Vacant - Unrented", value: prop.vacantUnrented || 0, color: T.red, sub: "Empty, no lease" },
-              { label: "Notice - Rented", value: prop.noticeRented || 0, color: T.blue, sub: "Leaving, replacement found" },
-              { label: "Notice - Unrented", value: prop.noticeUnrented || 0, color: T.amber, sub: "Leaving, no replacement" },
+              {
+                label: "Vacant - Rented",
+                value: prop.vacantRented || 0,
+                color: "green",
+                sub: "Lease signed, pending move-in",
+              },
+              {
+                label: "Vacant - Unrented",
+                value: prop.vacantUnrented || 0,
+                color: "red",
+                sub: "Empty, no lease",
+              },
+              {
+                label: "Notice - Rented",
+                value: prop.noticeRented || 0,
+                color: "blue",
+                sub: "Leaving, replacement found",
+              },
+              {
+                label: "Notice - Unrented",
+                value: prop.noticeUnrented || 0,
+                color: "amber",
+                sub: "Leaving, no replacement",
+              },
             ].map((v) => (
-              <div key={v.label} style={{ background: T.bg3, borderRadius: 8, padding: "14px 16px" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 8 }}>{v.label}</div>
-                <Mono style={{ fontSize: 22, fontWeight: 700, color: v.value > 0 ? v.color : T.text3 }}>{v.value}</Mono>
-                <div style={{ fontSize: 10, color: T.text2, marginTop: 4 }}>{v.sub}</div>
+              <div
+                key={v.label}
+                className="rounded-xl bg-chassis p-4 shadow-recessed-sm relative"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-label">
+                    {v.label}
+                  </span>
+                  {v.value > 0 && <LED color={v.color} size={7} pulse />}
+                </div>
+                <Mono
+                  className={
+                    "text-3xl font-bold " +
+                    (v.value > 0 ? "text-ink emboss" : "text-label/60")
+                  }
+                >
+                  {v.value}
+                </Mono>
+                <div className="mt-1 text-[10px] font-mono text-label">
+                  {v.sub}
+                </div>
               </div>
             ))}
           </div>
-        </div>
+        </Panel>
       )}
 
-      {/* Income — March 2026 */}
-      <div className="grid-2" style={{ marginTop: 18 }}>
-        <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>
-            This Month
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className="grid-2">
+        <Panel title="This Month">
+          <div className="grid grid-cols-2 gap-5">
             {[
-              { label: "Rental Income", value: prop.monthRentalIncome || prop.collectedIncome || 0, color: T.gold },
-              { label: "Total Income", value: prop.monthTotalIncome || prop.monthlyIncome || 0, color: T.text0 },
-              { label: "Expenses", value: prop.monthExpenses || 0, color: T.red },
-              { label: "Net Income", value: prop.monthNOI || 0, color: T.green },
+              {
+                label: "Rental Income",
+                value:
+                  prop.monthRentalIncome || prop.collectedIncome || 0,
+                color: "text-accent",
+              },
+              {
+                label: "Total Income",
+                value: prop.monthTotalIncome || prop.monthlyIncome || 0,
+                color: "text-ink",
+              },
+              {
+                label: "Expenses",
+                value: prop.monthExpenses || 0,
+                color: "text-[#b91c1c]",
+              },
+              {
+                label: "Net Income",
+                value: prop.monthNOI || 0,
+                color: "text-[#15803d]",
+              },
             ].map((s) => (
               <div key={s.label}>
-                <div style={fieldLabel}>{s.label}</div>
-                <Mono style={{ fontSize: 18, fontWeight: 700, color: s.color }}>{fc(s.value)}</Mono>
+                <Stamp className="text-[9px]">{s.label}</Stamp>
+                <Mono
+                  className={"mt-1.5 block text-xl font-bold " + s.color}
+                >
+                  {fc(s.value)}
+                </Mono>
               </div>
             ))}
           </div>
           {prop.monthlyIncome > 0 && prop.collectedIncome > 0 && (
-            <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, color: T.text2 }}>Collection Rate</span>
-              <Mono style={{ fontSize: 20, fontWeight: 700, color: collectionRate >= 95 ? T.green : collectionRate >= 85 ? T.amber : T.red }}>
-                {collectionRate}%
-              </Mono>
+            <div className="mt-5 pt-4 border-t border-[rgba(74,85,104,0.1)] flex items-center justify-between">
+              <Stamp>Collection Rate</Stamp>
+              <div className="flex items-center gap-2">
+                <LED
+                  color={
+                    collectionRate >= 95
+                      ? "green"
+                      : collectionRate >= 85
+                      ? "amber"
+                      : "red"
+                  }
+                  size={8}
+                  pulse
+                />
+                <Mono
+                  className={
+                    "text-2xl font-bold " +
+                    (collectionRate >= 95
+                      ? "text-[#15803d]"
+                      : collectionRate >= 85
+                      ? "text-[#b45309]"
+                      : "text-[#b91c1c]")
+                  }
+                >
+                  {collectionRate}%
+                </Mono>
+              </div>
             </div>
           )}
-        </div>
+        </Panel>
 
-        <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "22px 24px" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: T.text2, marginBottom: 20 }}>
-            Year to Date
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <Panel title="Year to Date">
+          <div className="grid grid-cols-2 gap-5">
             {[
-              { label: "Rental Income", value: prop.ytdRentalIncome || 0, color: T.gold },
-              { label: "Total Income", value: prop.ytdTotalIncome || 0, color: T.text0 },
-              { label: "Expenses", value: prop.ytdExpenses || 0, color: T.red },
-              { label: "Net Income", value: prop.ytdNOI || 0, color: T.green },
+              {
+                label: "Rental Income",
+                value: prop.ytdRentalIncome || 0,
+                color: "text-accent",
+              },
+              {
+                label: "Total Income",
+                value: prop.ytdTotalIncome || 0,
+                color: "text-ink",
+              },
+              {
+                label: "Expenses",
+                value: prop.ytdExpenses || 0,
+                color: "text-[#b91c1c]",
+              },
+              {
+                label: "Net Income",
+                value: prop.ytdNOI || 0,
+                color: "text-[#15803d]",
+              },
             ].map((s) => (
               <div key={s.label}>
-                <div style={fieldLabel}>{s.label}</div>
-                <Mono style={{ fontSize: 18, fontWeight: 700, color: s.color }}>{fc(s.value)}</Mono>
+                <Stamp className="text-[9px]">{s.label}</Stamp>
+                <Mono
+                  className={"mt-1.5 block text-xl font-bold " + s.color}
+                >
+                  {fc(s.value)}
+                </Mono>
               </div>
             ))}
           </div>
-        </div>
+        </Panel>
       </div>
     </div>
   );

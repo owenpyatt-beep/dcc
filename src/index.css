@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 *,
 *::before,
 *::after {
@@ -6,45 +10,181 @@
   box-sizing: border-box;
 }
 
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: #080909;
-  color: #f2ede4;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+:root {
+  --chassis: #e0e5ec;
+  --panel: #f0f2f5;
+  --recessed: #d1d9e6;
+  --ink: #2d3436;
+  --label: #4a5568;
+  --accent: #ff4757;
+  --accent-fg: #ffffff;
+  --shadow: #babecc;
+  --highlight: #ffffff;
+  --shadow-dark: #a3b1c6;
+  --led-green: #22c55e;
+  --led-amber: #f59e0b;
+  --led-red: #ef4444;
+
+  --shadow-card: 8px 8px 16px #babecc, -8px -8px 16px #ffffff;
+  --shadow-floating: 12px 12px 24px #babecc, -12px -12px 24px #ffffff,
+    inset 1px 1px 0 rgba(255, 255, 255, 0.5);
+  --shadow-pressed: inset 6px 6px 12px #babecc, inset -6px -6px 12px #ffffff;
+  --shadow-recessed: inset 4px 4px 8px #babecc, inset -4px -4px 8px #ffffff;
+  --shadow-recessed-sm: inset 3px 3px 6px #babecc, inset -3px -3px 6px #ffffff;
+  --shadow-sharp: 4px 4px 8px rgba(0, 0, 0, 0.15),
+    -1px -1px 1px rgba(255, 255, 255, 0.8);
 }
 
-/* Responsive grids */
+html,
+body {
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  background: var(--chassis);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01", "ss03";
+}
+
+body {
+  min-height: 100vh;
+  background-image: radial-gradient(
+      circle at top left,
+      rgba(255, 255, 255, 0.35) 0%,
+      transparent 50%
+    ),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.12 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-blend-mode: overlay;
+}
+
+/* Screw head — used at panel corners */
+.screws {
+  background-image: radial-gradient(
+      circle at 12px 12px,
+      rgba(0, 0, 0, 0.18) 1.5px,
+      transparent 2.5px
+    ),
+    radial-gradient(
+      circle at calc(100% - 12px) 12px,
+      rgba(0, 0, 0, 0.18) 1.5px,
+      transparent 2.5px
+    ),
+    radial-gradient(
+      circle at 12px calc(100% - 12px),
+      rgba(0, 0, 0, 0.18) 1.5px,
+      transparent 2.5px
+    ),
+    radial-gradient(
+      circle at calc(100% - 12px) calc(100% - 12px),
+      rgba(0, 0, 0, 0.18) 1.5px,
+      transparent 2.5px
+    );
+}
+
+/* CRT scanlines — used on "screen" elements */
+.scanlines {
+  background-image: linear-gradient(
+    rgba(0, 0, 0, 0) 50%,
+    rgba(0, 0, 0, 0.07) 50%
+  );
+  background-size: 100% 4px;
+}
+
+/* Blueprint grid */
+.blueprint {
+  background-image: linear-gradient(rgba(74, 85, 104, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(74, 85, 104, 0.15) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Stamped label text */
+.stamp {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+/* Mechanical press animation on buttons */
+.press {
+  transition: transform 150ms cubic-bezier(0.175, 0.885, 0.32, 1.275),
+    box-shadow 150ms ease;
+}
+.press:active {
+  transform: translateY(2px);
+}
+
+/* Utility class for vent slots (column of 3 recessed pills) */
+.vents::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 2px;
+  height: 20px;
+  border-radius: 9999px;
+  background: var(--recessed);
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.15),
+    4px 0 0 var(--recessed), 4px 0 0 rgba(0, 0, 0, 0) inset,
+    8px 0 0 var(--recessed);
+}
+
+/* Scrollbar in chassis style */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--chassis);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--shadow-dark);
+  border-radius: 9999px;
+  border: 2px solid var(--chassis);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--label);
+}
+
+/* Focus rings */
+:focus-visible {
+  outline: none;
+}
+
+/* Text shadow helpers */
+.emboss {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.emboss-dark {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Responsive grids (preserved from prior design) */
 .grid-4 {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  gap: 16px;
 }
-
 .grid-5 {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 14px;
+  gap: 16px;
 }
-
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  gap: 20px;
 }
-
 .grid-2-sidebar {
   display: grid;
   grid-template-columns: 1fr 360px;
-  gap: 18px;
+  gap: 20px;
 }
-
 .grid-chart {
   display: grid;
   grid-template-columns: 1.4fr 1fr;
-  gap: 18px;
+  gap: 20px;
 }
-
 .table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -56,12 +196,10 @@ body {
   .grid-chart { grid-template-columns: 1fr; }
   .grid-2-sidebar { grid-template-columns: 1fr; }
 }
-
 @media (max-width: 640px) {
   .grid-4 { grid-template-columns: 1fr 1fr; gap: 10px; }
   .grid-5 { grid-template-columns: 1fr 1fr; gap: 10px; }
   .grid-2 { grid-template-columns: 1fr; gap: 14px; }
   .grid-2-sidebar { grid-template-columns: 1fr; gap: 14px; }
   .grid-chart { grid-template-columns: 1fr; gap: 14px; }
-  .prop-header { flex-direction: column; align-items: flex-start; gap: 12px; }
 }

@@ -1,13 +1,80 @@
 import React, { useState, useRef } from "react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import {
-  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
-} from "recharts";
-import { T } from "../data/jobs";
+  Upload,
+  Loader2,
+  FileText,
+  Check,
+  Download,
+  AlertTriangle,
+  CheckCircle2,
+} from "lucide-react";
 import { fc, pct, Mono, Badge, ChartTip, COLORS } from "../utils/format";
 import { extractInvoices, fileToBase64 } from "../utils/extraction";
 import { mapTrade, getTradeCategories } from "../utils/tradeMap";
 import { useJobs } from "../context/JobsContext";
 import { authFetch } from "../utils/supabase";
+import { Button } from "./ui/Button";
+import { Stamp } from "./ui/Typography";
+import { LED } from "./ui/LED";
+
+function PillTab({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={
+        "press px-5 py-2.5 rounded-lg text-[12px] font-mono uppercase tracking-[0.08em] font-bold transition-all " +
+        (active
+          ? "bg-chassis text-ink shadow-pressed"
+          : "text-label hover:text-ink")
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
+function RowInput({ value, onChange, className = "", ...rest }) {
+  return (
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={
+        "w-full rounded-md bg-chassis px-3 py-2 text-[12px] font-mono text-ink shadow-recessed-sm border-none outline-none transition-shadow focus-visible:shadow-[inset_3px_3px_6px_#babecc,inset_-3px_-3px_6px_#ffffff,0_0_0_2px_var(--accent)] " +
+        className
+      }
+      {...rest}
+    />
+  );
+}
+
+function RowSelect({ value, onChange, children, className = "" }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={
+        "w-full rounded-md bg-chassis px-3 py-2 text-[12px] font-mono text-ink shadow-recessed-sm border-none outline-none appearance-none cursor-pointer focus-visible:shadow-[inset_3px_3px_6px_#babecc,inset_-3px_-3px_6px_#ffffff,0_0_0_2px_var(--accent)] " +
+        className
+      }
+    >
+      {children}
+    </select>
+  );
+}
+
+function EmptyState({ children }) {
+  return (
+    <div className="flex items-center justify-center h-[60vh]">
+      <div className="text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-chassis shadow-recessed-sm">
+          <LED color="amber" size={8} pulse />
+          <Stamp>{children}</Stamp>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function InvoicesView() {
   const { builds, commitExtraction } = useJobs();
@@ -22,20 +89,13 @@ export default function InvoicesView() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
 
-  if (!job) {
+  if (!job) return <EmptyState>Add a build property to start</EmptyState>;
+  if (!currentDraw)
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", color: T.text3, fontSize: 14 }}>
-        No build properties yet — add one to start uploading invoices.
-      </div>
+      <EmptyState>
+        No draws for {job.shortName} — create one from the Draws tab
+      </EmptyState>
     );
-  }
-  if (!currentDraw) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", color: T.text3, fontSize: 14 }}>
-        No draws for {job.shortName} — create a draw first from the Draws tab.
-      </div>
-    );
-  }
 
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
@@ -47,14 +107,10 @@ export default function InvoicesView() {
     try {
       const base64 = await fileToBase64(file);
       const invoices = await extractInvoices(base64);
-
-      // Normalize trade categories
       const normalized = invoices.map((inv) => ({
         ...inv,
         tradeCategory: mapTrade(inv.tradeCategory),
       }));
-
-      // Check for duplicates against the database
       try {
         const dupRes = await authFetch("/api/check-duplicates", {
           method: "POST",
@@ -125,12 +181,10 @@ export default function InvoicesView() {
     ? {
         count: extracted.length,
         total: extracted.reduce((s, inv) => s + inv.amountDue, 0),
-        accuracy: null,
       }
     : {
         count: currentDraw.invoices,
         total: currentDraw.amount,
-        accuracy: currentDraw.accuracy,
       };
 
   const exportCsv = () => {
@@ -159,68 +213,25 @@ export default function InvoicesView() {
   };
 
   const tradeCategories = getTradeCategories();
-
-  const inputStyle = {
-    background: T.bg4,
-    border: `1px solid ${T.border}`,
-    borderRadius: 4,
-    color: T.text0,
-    fontFamily: "'DM Sans', sans-serif",
-    fontSize: 12,
-    padding: "4px 8px",
-    outline: "none",
-    width: "100%",
-  };
-
-  const monoInputStyle = {
-    ...inputStyle,
-    fontFamily: "'JetBrains Mono', monospace",
-    textAlign: "right",
-    width: 100,
-  };
+  const duplicatesCount =
+    extracted?.filter((inv) => inv.duplicate).length || 0;
 
   return (
-    <div>
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          marginBottom: 24,
-          background: T.bg2,
-          borderRadius: 10,
-          padding: 4,
-          border: `1px solid ${T.border}`,
-          width: "fit-content",
-          overflowX: "auto",
-          flexWrap: "nowrap",
-        }}
-      >
+    <div className="max-w-[1400px] mx-auto">
+      <div className="inline-flex items-center gap-1 mb-6 p-1 rounded-xl bg-chassis shadow-recessed">
         {builds.map((j) => (
-          <button
+          <PillTab
             key={j.id}
+            active={selectedJob === j.id}
             onClick={() => {
               setSelectedJob(j.id);
               setExtracted(null);
               setError(null);
               setSaved(false);
             }}
-            style={{
-              background: selectedJob === j.id ? T.bg4 : "transparent",
-              border:
-                selectedJob === j.id
-                  ? `1px solid ${T.border}`
-                  : "1px solid transparent",
-              color: selectedJob === j.id ? T.text0 : T.text2,
-              fontSize: 12,
-              fontWeight: 600,
-              padding: "7px 18px",
-              borderRadius: 7,
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
           >
             {j.shortName}
-          </button>
+          </PillTab>
         ))}
       </div>
 
@@ -231,595 +242,323 @@ export default function InvoicesView() {
             ref={fileRef}
             type="file"
             accept="application/pdf"
-            style={{ display: "none" }}
+            className="hidden"
             onChange={handleFileSelect}
           />
           <div
             onClick={() => !extracting && fileRef.current?.click()}
+            className={
+              "relative mb-5 rounded-2xl bg-chassis p-8 text-center transition-all duration-300 ease-mechanical screws overflow-hidden " +
+              (extracting
+                ? "shadow-pressed cursor-wait"
+                : "shadow-card cursor-pointer hover:-translate-y-0.5 hover:shadow-floating")
+            }
             style={{
-              background: extracting ? T.bg3 : T.bg2,
-              border: `1px dashed ${T.goldBorder}`,
-              borderRadius: 10,
-              padding: "28px 24px",
-              marginBottom: 18,
-              textAlign: "center",
-              cursor: extracting ? "wait" : "pointer",
-              transition: "background 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              if (!extracting) e.currentTarget.style.background = T.bg3;
-            }}
-            onMouseLeave={(e) => {
-              if (!extracting) e.currentTarget.style.background = T.bg2;
+              backgroundImage:
+                "radial-gradient(circle at 20% 15%, rgba(255,255,255,0.4) 0%, transparent 50%)",
             }}
           >
             {extracting ? (
               <>
-                <svg
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  style={{
-                    margin: "0 auto 10px",
-                    display: "block",
-                    animation: "spin 1.2s linear infinite",
-                  }}
-                >
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="9"
-                    stroke={T.gold}
-                    strokeWidth="2"
-                    strokeDasharray="28 14"
-                    strokeLinecap="round"
-                    opacity="0.7"
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-chassis shadow-pressed">
+                  <Loader2
+                    className="h-6 w-6 text-accent animate-spin"
+                    strokeWidth={2}
                   />
-                </svg>
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: T.gold,
-                    marginBottom: 4,
-                  }}
-                >
-                  Extracting invoices...
                 </div>
-                <div style={{ fontSize: 11, color: T.text2 }}>
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <LED color="accent" size={8} pulse />
+                  <Stamp className="text-accent">Extracting...</Stamp>
+                </div>
+                <div className="text-[11px] font-mono text-label">
                   Processing PDF with Claude
                 </div>
               </>
             ) : (
               <>
-                <svg
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  style={{
-                    margin: "0 auto 10px",
-                    display: "block",
-                  }}
-                >
-                  <rect
-                    x="4"
-                    y="2"
-                    width="12"
-                    height="16"
-                    rx="2"
-                    stroke={T.gold}
-                    strokeWidth="1.5"
-                    opacity="0.5"
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-chassis shadow-floating">
+                  <Upload
+                    className="h-5 w-5 text-accent"
+                    strokeWidth={1.8}
                   />
-                  <path
-                    d="M16 2l4 4"
-                    stroke={T.gold}
-                    strokeWidth="1.5"
-                    opacity="0.5"
-                  />
-                  <path
-                    d="M16 2v4h4"
-                    stroke={T.gold}
-                    strokeWidth="1.5"
-                    opacity="0.5"
-                  />
-                  <path
-                    d="M9 12v5M9 12l-2 2M9 12l2 2"
-                    stroke={T.gold}
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: T.text1,
-                    marginBottom: 4,
-                  }}
-                >
+                </div>
+                <div className="text-[14px] font-bold text-ink emboss mb-1">
                   Upload Invoice Batch PDF
                 </div>
-                <div style={{ fontSize: 11, color: T.text2 }}>
-                  Drag & drop or click — multi-page PDFs supported
+                <div className="text-[11px] font-mono text-label mb-4">
+                  Drag & drop or click — multi-page supported
                 </div>
-                <div
-                  style={{
-                    display: "inline-block",
-                    marginTop: 14,
-                    padding: "7px 20px",
-                    background: T.goldDim,
-                    border: `1px solid ${T.goldBorder}`,
-                    borderRadius: 7,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: T.gold,
-                  }}
-                >
-                  Select File
-                </div>
+                <Button variant="primary" size="md">
+                  <FileText className="h-3.5 w-3.5 mr-2" /> Select File
+                </Button>
               </>
             )}
           </div>
 
           {error && (
-            <div
-              style={{
-                background: T.redDim,
-                border: `1px solid ${T.red}44`,
-                borderRadius: 8,
-                padding: "12px 18px",
-                marginBottom: 18,
-                fontSize: 12,
-                color: T.red,
-              }}
-            >
-              {error}
+            <div className="mb-4 flex items-center gap-3 rounded-xl px-4 py-3 bg-chassis shadow-recessed-sm">
+              <AlertTriangle className="h-4 w-4 text-[#ef4444]" />
+              <span className="font-mono text-xs text-[#b91c1c]">{error}</span>
             </div>
           )}
 
-          {/* Duplicate warning banner */}
-          {extracted && extracted.some((inv) => inv.duplicate) && (
-            <div
-              style={{
-                background: T.amberDim,
-                border: `1px solid ${T.amber}44`,
-                borderRadius: 8,
-                padding: "12px 18px",
-                marginBottom: 18,
-                fontSize: 12,
-                color: T.amber,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <strong>{extracted.filter((i) => i.duplicate).length} possible duplicates</strong> found in previous draws — review flagged rows below before saving.
+          {duplicatesCount > 0 && (
+            <div className="mb-4 flex items-center gap-3 rounded-xl px-4 py-3 bg-chassis shadow-recessed-sm">
+              <LED color="amber" size={10} pulse />
+              <span className="font-mono text-[12px] text-[#b45309]">
+                <strong>{duplicatesCount} possible duplicate{duplicatesCount !== 1 ? "s" : ""}</strong>{" "}
+                found in previous draws — review flagged rows before saving.
+              </span>
             </div>
           )}
 
           {/* Trade breakdown table */}
-          <div
-            style={{
-              background: T.bg2,
-              border: `1px solid ${T.border}`,
-              borderRadius: 10,
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                padding: "18px 24px",
-                borderBottom: `1px solid ${T.border}`,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "0.09em",
-                  textTransform: "uppercase",
-                  color: T.text2,
-                }}
-              >
-                Trade Breakdown — {job.shortName} Draw #{currentDraw.num}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="rounded-2xl bg-chassis shadow-card overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-[rgba(74,85,104,0.08)]">
+              <Stamp>
+                Trade Breakdown · {job.shortName} Draw #{currentDraw.num}
+              </Stamp>
+              <div className="flex items-center gap-3">
                 {extracted && !saved && (
-                  <button
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={handleSaveToDraw}
-                    style={{
-                      background: T.greenDim,
-                      border: `1px solid ${T.green}44`,
-                      borderRadius: 6,
-                      color: T.green,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      padding: "5px 14px",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontFamily: "inherit",
-                    }}
+                    iconLeft={<Check className="h-3 w-3" strokeWidth={2.5} />}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                      <path d="M5 12l5 5L20 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Save to Draw
-                  </button>
+                    Save
+                  </Button>
                 )}
                 {saved && (
-                  <Badge label="Saved" color={T.green} bg={T.greenDim} />
+                  <span className="inline-flex items-center gap-2 rounded-md bg-chassis px-2.5 py-1 shadow-recessed-sm">
+                    <CheckCircle2 className="h-3 w-3 text-[#22c55e]" />
+                    <Stamp className="text-[9px] text-[#15803d]">Saved</Stamp>
+                  </span>
                 )}
                 {(extracted || savedInvoices) && (
-                  <button
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={exportCsv}
-                    style={{
-                      background: T.goldDim,
-                      border: `1px solid ${T.goldBorder}`,
-                      borderRadius: 6,
-                      color: T.gold,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      padding: "5px 14px",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      fontFamily: "inherit",
-                    }}
+                    iconLeft={<Download className="h-3 w-3" />}
                   >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <path
-                        d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    Export CSV
-                  </button>
+                    CSV
+                  </Button>
                 )}
-                <Mono style={{ fontSize: 12, color: T.text2 }}>
+                <Mono className="text-[12px] font-bold text-accent">
                   {fc(displayTotal)}
                 </Mono>
               </div>
             </div>
             <div className="table-wrap">
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-                  {(extracted
-                    ? ["Trade Category", "Vendor", "Amount", "Type", ""]
-                    : ["Trade Category", "Amount", "% of Draw", ""]
-                  ).map((h, i) => (
-                    <th
-                      key={i}
-                      style={{
-                        padding: "10px 24px",
-                        textAlign: "left",
-                        fontSize: 9,
-                        fontWeight: 700,
-                        letterSpacing: "0.1em",
-                        textTransform: "uppercase",
-                        color: T.text3,
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {extracted
-                  ? tradeGroups.map((group, gi) =>
-                      group.invoices.map((inv, ii) => {
-                        const isLast =
-                          gi === tradeGroups.length - 1 &&
-                          ii === group.invoices.length - 1;
-                        const p = displayTotal > 0 ? pct(inv.amountDue, displayTotal) : 0;
-                        const isFirst = ii === 0;
-                        return (
-                          <tr
-                            key={inv.id}
-                            style={{
-                              borderBottom: isLast
-                                ? "none"
-                                : `1px solid ${T.bg3}`,
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background = T.bg3)
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background =
-                                "transparent")
-                            }
-                          >
-                            <td style={{ padding: "10px 24px" }}>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 8,
-                                  paddingLeft: isFirst ? 0 : 16,
-                                }}
-                              >
-                                {isFirst && (
-                                  <div
-                                    style={{
-                                      width: 8,
-                                      height: 8,
-                                      borderRadius: 2,
-                                      background:
-                                        COLORS[gi % COLORS.length],
-                                      flexShrink: 0,
-                                    }}
-                                  />
-                                )}
-                                <select
-                                  value={inv.tradeCategory}
-                                  onChange={(e) =>
-                                    updateInvoice(
-                                      inv.id,
-                                      "tradeCategory",
-                                      e.target.value
-                                    )
-                                  }
-                                  style={{
-                                    ...inputStyle,
-                                    width: "auto",
-                                    minWidth: 140,
-                                  }}
-                                >
-                                  {tradeCategories.map((cat) => (
-                                    <option key={cat} value={cat}>
-                                      {cat}
-                                    </option>
-                                  ))}
-                                  {!tradeCategories.includes(
-                                    inv.tradeCategory
-                                  ) && (
-                                    <option value={inv.tradeCategory}>
-                                      {inv.tradeCategory}
-                                    </option>
-                                  )}
-                                </select>
-                              </div>
-                            </td>
-                            <td style={{ padding: "10px 24px" }}>
-                              <input
-                                type="text"
-                                value={inv.vendor}
-                                onChange={(e) =>
-                                  updateInvoice(
-                                    inv.id,
-                                    "vendor",
-                                    e.target.value
-                                  )
-                                }
-                                style={inputStyle}
-                              />
-                            </td>
-                            <td style={{ padding: "10px 24px" }}>
-                              <input
-                                type="number"
-                                value={inv.amountDue}
-                                onChange={(e) =>
-                                  updateInvoice(
-                                    inv.id,
-                                    "amountDue",
-                                    e.target.value
-                                  )
-                                }
-                                style={monoInputStyle}
-                                step="0.01"
-                              />
-                            </td>
-                            <td style={{ padding: "10px 24px" }}>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                                <Badge
-                                  label={inv.invoiceType === "pay_application" ? "Pay App" : inv.invoiceType === "statement_line" ? "Statement" : "Invoice"}
-                                  color={inv.invoiceType === "pay_application" ? T.amber : inv.invoiceType === "statement_line" ? "#a680d4" : T.text2}
-                                  bg={inv.invoiceType === "pay_application" ? T.amberDim : inv.invoiceType === "statement_line" ? "rgba(166,128,212,0.12)" : T.bg4}
-                                />
-                                {inv.missingDataFlag && (
-                                  <Badge
-                                    label={inv.missingDataFlag.length > 20 ? inv.missingDataFlag.slice(0, 20) + "..." : inv.missingDataFlag}
-                                    color={T.red}
-                                    bg={T.redDim}
-                                  />
-                                )}
-                              </div>
-                            </td>
-                            <td
-                              style={{
-                                padding: "10px 24px",
-                                textAlign: "right",
-                              }}
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    {(extracted
+                      ? ["Trade Category", "Vendor", "Amount", "Type", ""]
+                      : ["Trade Category", "Amount", "% of Draw", ""]
+                    ).map((h, i) => (
+                      <th
+                        key={i}
+                        className="px-4 py-3 text-left font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-label"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {extracted
+                    ? tradeGroups.map((group, gi) =>
+                        group.invoices.map((inv, ii) => {
+                          const isFirst = ii === 0;
+                          return (
+                            <tr
+                              key={inv.id}
+                              className="border-t border-[rgba(74,85,104,0.05)] hover:bg-white/30 transition-colors"
                             >
-                              {inv.duplicate ? (
-                                <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-end" }}>
+                              <td className="px-4 py-2.5">
+                                <div className="flex items-center gap-2">
+                                  {isFirst ? (
+                                    <div
+                                      className="h-2 w-2 rounded-sm shrink-0"
+                                      style={{
+                                        background: COLORS[gi % COLORS.length],
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-2" />
+                                  )}
+                                  <RowSelect
+                                    value={inv.tradeCategory}
+                                    onChange={(v) =>
+                                      updateInvoice(inv.id, "tradeCategory", v)
+                                    }
+                                    className="min-w-[140px]"
+                                  >
+                                    {tradeCategories.map((cat) => (
+                                      <option key={cat} value={cat}>
+                                        {cat}
+                                      </option>
+                                    ))}
+                                    {!tradeCategories.includes(
+                                      inv.tradeCategory
+                                    ) && (
+                                      <option value={inv.tradeCategory}>
+                                        {inv.tradeCategory}
+                                      </option>
+                                    )}
+                                  </RowSelect>
+                                </div>
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <RowInput
+                                  value={inv.vendor}
+                                  onChange={(v) =>
+                                    updateInvoice(inv.id, "vendor", v)
+                                  }
+                                />
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <RowInput
+                                  type="number"
+                                  value={inv.amountDue}
+                                  onChange={(v) =>
+                                    updateInvoice(inv.id, "amountDue", v)
+                                  }
+                                  step="0.01"
+                                  className="text-right max-w-[110px]"
+                                />
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <div className="flex flex-col gap-1.5">
                                   <Badge
-                                    label={inv.duplicateExact ? "Duplicate" : "Possible Match"}
-                                    color={T.red}
-                                    bg={T.redDim}
+                                    label={
+                                      inv.invoiceType === "pay_application"
+                                        ? "Pay App"
+                                        : inv.invoiceType === "statement_line"
+                                        ? "Statement"
+                                        : "Invoice"
+                                    }
+                                    ledColor={
+                                      inv.invoiceType === "pay_application"
+                                        ? "amber"
+                                        : inv.invoiceType === "statement_line"
+                                        ? "purple"
+                                        : null
+                                    }
                                   />
-                                  {inv.duplicateRefs && inv.duplicateRefs[0] && (
-                                    <span style={{ fontSize: 9, color: T.text3, whiteSpace: "nowrap" }}>
-                                      Draw #{inv.duplicateRefs[0].drawNum}
-                                      {!inv.duplicateAmountMatches && " (amt diff)"}
-                                    </span>
+                                  {inv.missingDataFlag && (
+                                    <Badge
+                                      label={
+                                        inv.missingDataFlag.length > 20
+                                          ? inv.missingDataFlag.slice(0, 20) +
+                                            "..."
+                                          : inv.missingDataFlag
+                                      }
+                                      ledColor="red"
+                                    />
                                   )}
                                 </div>
-                              ) : (
-                                <Badge
-                                  label="New"
-                                  color={T.green}
-                                  bg={T.greenDim}
+                              </td>
+                              <td className="px-4 py-2.5 text-right">
+                                {inv.duplicate ? (
+                                  <div className="flex flex-col items-end gap-1.5">
+                                    <Badge
+                                      label={
+                                        inv.duplicateExact
+                                          ? "Duplicate"
+                                          : "Possible Match"
+                                      }
+                                      ledColor="red"
+                                    />
+                                    {inv.duplicateRefs &&
+                                      inv.duplicateRefs[0] && (
+                                        <span className="font-mono text-[9px] text-label whitespace-nowrap">
+                                          Draw #
+                                          {inv.duplicateRefs[0].drawNum}
+                                          {!inv.duplicateAmountMatches &&
+                                            " (amt diff)"}
+                                        </span>
+                                      )}
+                                  </div>
+                                ) : (
+                                  <Badge label="New" ledColor="green" />
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )
+                    : staticBreakdown.map((t, i) => {
+                        const p =
+                          displayTotal > 0 ? pct(t.amount, displayTotal) : 0;
+                        return (
+                          <tr
+                            key={t.trade}
+                            className="border-t border-[rgba(74,85,104,0.05)] hover:bg-white/30 transition-colors"
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="h-2 w-2 rounded-sm shrink-0"
+                                  style={{
+                                    background: COLORS[i % COLORS.length],
+                                  }}
                                 />
-                              )}
+                                <span className="text-[12px] font-semibold text-ink">
+                                  {t.trade}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <Mono className="text-[13px] font-bold text-ink">
+                                {fc(t.amount)}
+                              </Mono>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="h-1 rounded-full bg-chassis overflow-hidden max-w-[80px] flex-1"
+                                  style={{
+                                    boxShadow:
+                                      "inset 1px 1px 2px rgba(186,190,204,0.9)",
+                                  }}
+                                >
+                                  <div
+                                    className="h-full rounded-full"
+                                    style={{
+                                      width: `${p}%`,
+                                      background: COLORS[i % COLORS.length],
+                                    }}
+                                  />
+                                </div>
+                                <Mono className="text-[11px] text-label">
+                                  {p}%
+                                </Mono>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Badge label="Ready" ledColor="green" />
                             </td>
                           </tr>
                         );
-                      })
-                    )
-                  : staticBreakdown.map((t, i) => {
-                      const p = displayTotal > 0 ? pct(t.amount, displayTotal) : 0;
-                      return (
-                        <tr
-                          key={t.trade}
-                          style={{
-                            borderBottom:
-                              i < staticBreakdown.length - 1
-                                ? `1px solid ${T.bg3}`
-                                : "none",
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = T.bg3)
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background =
-                              "transparent")
-                          }
-                        >
-                          <td style={{ padding: "12px 24px" }}>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: 8,
-                                  height: 8,
-                                  borderRadius: 2,
-                                  background:
-                                    COLORS[i % COLORS.length],
-                                  flexShrink: 0,
-                                }}
-                              />
-                              <span
-                                style={{
-                                  fontSize: 12,
-                                  color: T.text1,
-                                }}
-                              >
-                                {t.trade}
-                              </span>
-                            </div>
-                          </td>
-                          <td style={{ padding: "12px 24px" }}>
-                            <Mono
-                              style={{
-                                fontSize: 13,
-                                color: T.text0,
-                                fontWeight: 700,
-                              }}
-                            >
-                              {fc(t.amount)}
-                            </Mono>
-                          </td>
-                          <td style={{ padding: "12px 24px" }}>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 10,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  flex: 1,
-                                  height: 3,
-                                  borderRadius: 2,
-                                  background: T.bg4,
-                                  overflow: "hidden",
-                                  maxWidth: 80,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    height: "100%",
-                                    width: `${p}%`,
-                                    background:
-                                      COLORS[i % COLORS.length],
-                                  }}
-                                />
-                              </div>
-                              <Mono
-                                style={{
-                                  fontSize: 11,
-                                  color: T.text2,
-                                }}
-                              >
-                                {p}%
-                              </Mono>
-                            </div>
-                          </td>
-                          <td
-                            style={{
-                              padding: "12px 24px",
-                              textAlign: "right",
-                            }}
-                          >
-                            <Badge
-                              label="Ready"
-                              color={T.green}
-                              bg={T.greenDim}
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })}
-              </tbody>
-            </table>
-          </div>
+                      })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        {/* Right sidebar */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div
-            style={{
-              background: T.bg2,
-              border: `1px solid ${T.border}`,
-              borderRadius: 10,
-              padding: "22px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "0.09em",
-                textTransform: "uppercase",
-                color: T.text2,
-                marginBottom: 16,
-              }}
-            >
-              Trade Distribution
+        {/* Sidebar */}
+        <div className="flex flex-col gap-5">
+          <div className="rounded-2xl bg-chassis p-6 shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <Stamp>Trade Distribution</Stamp>
+              <LED color="accent" size={8} pulse />
             </div>
             {displayData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
                   <Pie
                     data={displayData}
@@ -827,77 +566,51 @@ export default function InvoicesView() {
                     nameKey="trade"
                     cx="50%"
                     cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={2}
+                    innerRadius={58}
+                    outerRadius={90}
+                    paddingAngle={3}
+                    stroke="none"
                   >
                     {displayData.map((_, i) => (
-                      <Cell
-                        key={i}
-                        fill={COLORS[i % COLORS.length]}
-                      />
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip content={<ChartTip />} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: T.text3 }}>
-                No trade data yet
+              <div className="h-[220px] flex items-center justify-center">
+                <Stamp className="text-label/70">No trade data yet</Stamp>
               </div>
             )}
           </div>
-          <div
-            style={{
-              background: T.bg2,
-              border: `1px solid ${T.border}`,
-              borderRadius: 10,
-              padding: "22px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "0.09em",
-                textTransform: "uppercase",
-                color: T.text2,
-                marginBottom: 16,
-              }}
-            >
-              Invoice Summary
+
+          <div className="rounded-2xl bg-chassis p-6 shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <Stamp>Invoice Summary</Stamp>
+              <LED color="green" size={8} pulse />
             </div>
             {[
               {
                 label: "Invoices Found",
                 value: extractionStats.count,
-                color: T.text0,
+                color: "text-ink",
               },
               {
                 label: "Total Amount",
                 value: fc(extractionStats.total),
-                color: T.gold,
+                color: "text-accent",
               },
-            ].map((s) => (
+            ].map((s, i) => (
               <div
                 key={s.label}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "10px 0",
-                  borderBottom: `1px solid ${T.bg3}`,
-                }}
+                className={
+                  "flex justify-between items-center py-3 " +
+                  (i === 0 ? "border-b border-[rgba(74,85,104,0.08)]" : "")
+                }
               >
-                <span style={{ fontSize: 12, color: T.text2 }}>
-                  {s.label}
-                </span>
-                <Mono
-                  style={{
-                    fontSize: 12,
-                    color: s.color,
-                    fontWeight: 700,
-                  }}
-                >
+                <Stamp className="text-[10px]">{s.label}</Stamp>
+                <Mono className={"text-[14px] font-bold " + s.color}>
                   {s.value}
                 </Mono>
               </div>

@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { T, DRAW_STATUS } from "./data/jobs";
+import {
+  LayoutGrid,
+  Building2,
+  Layers,
+  Receipt,
+  Plus,
+  LogOut,
+  Menu,
+  X,
+} from "lucide-react";
+import { DRAW_STATUS } from "./data/jobs";
 import { pct } from "./utils/format";
 import { useJobs } from "./context/JobsContext";
 import { useAuth } from "./context/AuthContext";
@@ -11,6 +21,9 @@ import AddJobModal from "./components/AddJobModal";
 import LoginPage from "./components/LoginPage";
 import PrivacyPage from "./components/PrivacyPage";
 import TermsPage from "./components/TermsPage";
+import { LED, StatusPill } from "./components/ui/LED";
+import { Button } from "./components/ui/Button";
+import { Stamp } from "./components/ui/Typography";
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(window.innerWidth < breakpoint);
@@ -22,51 +35,11 @@ function useIsMobile(breakpoint = 768) {
   return isMobile;
 }
 
-function PortfolioIcon({ active }) {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-      <rect x="1" y="1" width="6" height="6" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
-      <rect x="9" y="1" width="6" height="6" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
-      <rect x="1" y="9" width="6" height="6" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
-      <rect x="9" y="9" width="6" height="6" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
-    </svg>
-  );
-}
-
-function PropertiesIcon({ active }) {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-      <path d="M2 14V6l6-4 6 4v8" stroke={active ? T.gold : T.text3} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-      <rect x="5.5" y="9" width="5" height="5" rx="0.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
-    </svg>
-  );
-}
-
-function DrawsIcon({ active }) {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-      <rect x="1" y="1" width="14" height="4" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
-      <rect x="1" y="6" width="14" height="4" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
-      <rect x="1" y="11" width="14" height="4" rx="1.5" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
-    </svg>
-  );
-}
-
-function InvoicesIcon({ active }) {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-      <path d="M4 1h6l3 3v10.5a.5.5 0 01-.5.5h-8a.5.5 0 01-.5-.5v-13a.5.5 0 01.5-.5z" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
-      <path d="M10 1v3h3" stroke={active ? T.gold : T.text3} strokeWidth="1.3" />
-      <path d="M6 8h5M6 10.5h3" stroke={active ? T.gold : T.text3} strokeWidth="1.3" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 const NAV = [
-  { id: "portfolio", label: "Portfolio", Icon: PortfolioIcon },
-  { id: "properties", label: "Properties", Icon: PropertiesIcon },
-  { id: "draws", label: "Draws", Icon: DrawsIcon },
-  { id: "invoices", label: "Invoices", Icon: InvoicesIcon },
+  { id: "portfolio", label: "Portfolio", Icon: LayoutGrid },
+  { id: "properties", label: "Properties", Icon: Building2 },
+  { id: "draws", label: "Draws", Icon: Layers },
+  { id: "invoices", label: "Invoices", Icon: Receipt },
 ];
 
 const TITLES = {
@@ -75,6 +48,109 @@ const TITLES = {
   draws: "Draws",
   invoices: "Invoices",
 };
+
+function BootScreen({ message = "Loading...", error = null }) {
+  return (
+    <div className="min-h-screen w-full bg-chassis flex items-center justify-center p-6">
+      <div className="text-center">
+        <div
+          className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl font-extrabold text-white text-xl"
+          style={{
+            background:
+              "linear-gradient(135deg, #ff4757 0%, #c1323e 100%)",
+            boxShadow:
+              "6px 6px 14px rgba(166,50,60,0.45), -4px -4px 10px rgba(255,120,130,0.4), inset 1px 1px 0 rgba(255,255,255,0.4)",
+          }}
+        >
+          D
+        </div>
+        <div className="text-[22px] font-bold text-ink emboss mb-1.5">
+          Debrecht Command Center
+        </div>
+        {!error ? (
+          <div className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-md bg-chassis shadow-recessed-sm">
+            <LED color="amber" size={8} pulse />
+            <Stamp>{message}</Stamp>
+          </div>
+        ) : (
+          <>
+            <div className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-md bg-chassis shadow-recessed-sm">
+              <LED color="red" size={8} pulse />
+              <Stamp className="text-[#b91c1c]">Connection failed</Stamp>
+            </div>
+            <div className="mt-4 max-w-md mx-auto text-xs font-mono text-label/80 break-all">
+              {error}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Brand({ onClose }) {
+  return (
+    <div className="px-5 py-5 border-b border-[rgba(74,85,104,0.1)] flex items-center gap-3">
+      <div
+        className="flex h-10 w-10 items-center justify-center rounded-xl font-extrabold text-white text-sm shrink-0"
+        style={{
+          background: "linear-gradient(135deg, #ff4757 0%, #c1323e 100%)",
+          boxShadow:
+            "3px 3px 8px rgba(166,50,60,0.45), -2px -2px 6px rgba(255,120,130,0.35), inset 1px 1px 0 rgba(255,255,255,0.3)",
+        }}
+      >
+        D
+      </div>
+      <div className="leading-tight">
+        <div className="text-[13px] font-bold text-ink">Debrecht</div>
+        <Stamp className="text-[8px]">Command Center</Stamp>
+      </div>
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="ml-auto rounded-md p-1.5 text-label press hover:text-ink"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function NavButton({ active, onClick, Icon, label }) {
+  return (
+    <button
+      onClick={onClick}
+      className={
+        "press flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13px] font-medium transition-all " +
+        (active
+          ? "text-ink shadow-pressed"
+          : "text-label hover:text-ink hover:shadow-recessed-sm")
+      }
+    >
+      <Icon
+        className="h-4 w-4"
+        strokeWidth={active ? 2.2 : 1.6}
+        style={{ color: active ? "#ff4757" : undefined }}
+      />
+      <span className={active ? "font-semibold" : ""}>{label}</span>
+      {active && (
+        <span className="ml-auto">
+          <LED color="accent" size={7} pulse />
+        </span>
+      )}
+    </button>
+  );
+}
+
+function SectionHeader({ children, action }) {
+  return (
+    <div className="flex items-center justify-between px-3 pt-5 pb-2">
+      <Stamp className="text-[9px] text-label/80">{children}</Stamp>
+      {action}
+    </div>
+  );
+}
 
 export default function App() {
   const path = window.location.pathname;
@@ -91,43 +167,10 @@ export default function App() {
   if (path === "/privacy") return <PrivacyPage />;
   if (path === "/terms") return <TermsPage />;
 
-  // Auth loading
-  if (authLoading) {
-    return (
-      <div style={{ fontFamily: "'DM Sans', sans-serif", background: T.bg0, minHeight: "100vh", color: T.text0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: T.gold, marginBottom: 12 }}>DCC</div>
-          <div style={{ fontSize: 13, color: T.text1 }}>Loading...</div>
-        </div>
-      </div>
-    );
-  }
-
-  // Not logged in — show login page
+  if (authLoading) return <BootScreen message="Authenticating..." />;
   if (!user) return <LoginPage />;
-
-  if (loading) {
-    return (
-      <div style={{ fontFamily: "'DM Sans', sans-serif", background: T.bg0, minHeight: "100vh", color: T.text0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: T.gold, marginBottom: 12 }}>DCC</div>
-          <div style={{ fontSize: 13, color: T.text1 }}>Loading...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (dataError) {
-    return (
-      <div style={{ fontFamily: "'DM Sans', sans-serif", background: T.bg0, minHeight: "100vh", color: T.text0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center", maxWidth: 400 }}>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: T.gold, marginBottom: 12 }}>DCC</div>
-          <div style={{ fontSize: 13, color: T.red, marginBottom: 8 }}>Failed to connect to database</div>
-          <div style={{ fontSize: 11, color: T.text2, wordBreak: "break-all" }}>{dataError}</div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <BootScreen message="Loading data..." />;
+  if (dataError) return <BootScreen error={dataError} />;
 
   const handleSelectManaged = (id) => {
     setSelectedManagedId(id);
@@ -146,179 +189,243 @@ export default function App() {
     setSidebarOpen(false);
   };
 
-  // Sidebar content (shared between desktop sidebar and mobile overlay)
   const sidebarContent = (
     <>
-      {/* Brand */}
-      <div style={{ padding: "22px 20px 20px", borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 9, background: `linear-gradient(135deg, ${T.gold}, #9e7a3a)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 900, color: T.bg0, flexShrink: 0 }}>D</div>
-          <div>
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 13, fontWeight: 700, color: T.text0, lineHeight: 1.1 }}>Debrecht</div>
-            <div style={{ fontSize: 9, color: T.text3, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 2 }}>Command Center</div>
-          </div>
-          {isMobile && (
-            <button onClick={() => setSidebarOpen(false)} style={{ marginLeft: "auto", background: "transparent", border: "none", color: T.text2, fontSize: 20, cursor: "pointer", padding: 4 }}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-            </button>
-          )}
+      <Brand onClose={isMobile ? () => setSidebarOpen(false) : null} />
+
+      <nav className="flex-1 overflow-y-auto px-3 py-3">
+        <SectionHeader>Navigation</SectionHeader>
+        <div className="space-y-1">
+          {NAV.map((n) => (
+            <NavButton
+              key={n.id}
+              active={view === n.id}
+              onClick={() => handleNav(n.id)}
+              Icon={n.Icon}
+              label={n.label}
+            />
+          ))}
         </div>
-      </div>
 
-      {/* Navigation */}
-      <nav style={{ padding: "12px 10px", flex: 1, overflowY: "auto" }}>
-        {!isMobile && (
-          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: T.text3, padding: "4px 10px 10px" }}>Navigation</div>
-        )}
-        {!isMobile && NAV.map((n) => {
-          const isActive = view === n.id;
-          const Icon = n.Icon;
-          return (
-            <button key={n.id} onClick={() => handleNav(n.id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", background: isActive ? T.bg3 : "transparent", border: `1px solid ${isActive ? T.border : "transparent"}`, color: isActive ? T.text0 : T.text2, padding: "9px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: isActive ? 600 : 400, marginBottom: 2, textAlign: "left", transition: "all 0.15s", fontFamily: "inherit" }}>
-              <span style={{ width: 18, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon active={isActive} /></span>
-              {n.label}
-              {isActive && <div style={{ marginLeft: "auto", width: 5, height: 5, borderRadius: "50%", background: T.gold }} />}
-            </button>
-          );
-        })}
-
-        {/* Managed Properties */}
         {managed.length > 0 && (
           <>
-            <div style={{ marginTop: isMobile ? 0 : 24, fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: T.text3, padding: "4px 10px 10px" }}>Managed</div>
-            {managed.map((p) => {
-              const occ = p.totalUnits > 0 ? pct(p.occupiedUnits, p.totalUnits) : 0;
-              return (
-                <div key={p.id} style={{ padding: "8px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer", transition: "background 0.15s" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = T.bg3)}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  onClick={() => handleSelectManaged(p.id)}
-                >
-                  <div style={{ fontSize: 12, fontWeight: 600, color: T.text1 }}>{p.shortName}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
-                    <div style={{ width: 5, height: 5, borderRadius: "50%", background: occ >= 90 ? T.green : occ >= 75 ? T.amber : T.red }} />
-                    <span style={{ fontSize: 10, color: T.text3 }}>{occ}% occupied &middot; {p.occupiedUnits}/{p.totalUnits}</span>
-                  </div>
-                </div>
-              );
-            })}
+            <SectionHeader>Managed</SectionHeader>
+            <div className="space-y-1">
+              {managed.map((p) => {
+                const occ = p.totalUnits > 0 ? pct(p.occupiedUnits, p.totalUnits) : 0;
+                const ledColor =
+                  occ >= 90 ? "green" : occ >= 75 ? "amber" : "red";
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => handleSelectManaged(p.id)}
+                    className="press group w-full rounded-xl px-3 py-2.5 text-left hover:shadow-recessed-sm transition-all"
+                  >
+                    <div className="text-[12px] font-semibold text-ink">
+                      {p.shortName}
+                    </div>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <LED color={ledColor} size={6} pulse={false} />
+                      <span className="text-[10px] font-mono text-label">
+                        {occ}% occupied · {p.occupiedUnits}/{p.totalUnits}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </>
         )}
 
-        {/* Active Builds */}
-        <div style={{ marginTop: managed.length > 0 ? 16 : isMobile ? 0 : 24, fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: T.text3, padding: "4px 10px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>Active Builds</span>
-          <button onClick={() => { setShowAddJob(true); setSidebarOpen(false); }} style={{ background: "transparent", border: "none", color: T.gold, fontSize: 14, cursor: "pointer", padding: "0 2px", lineHeight: 1 }} title="Add property">+</button>
-        </div>
-        {builds.map((j) => {
-          const jDraws = j.draws || [];
-          const currentDraw = jDraws[jDraws.length - 1];
-          return (
-            <div key={j.id} style={{ padding: "8px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer", transition: "background 0.15s" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = T.bg3)}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              onClick={() => handleSelectBuild(j.id)}
+        <SectionHeader
+          action={
+            <button
+              onClick={() => {
+                setShowAddJob(true);
+                setSidebarOpen(false);
+              }}
+              className="press flex h-6 w-6 items-center justify-center rounded-full text-accent shadow-card hover:shadow-floating"
+              title="Add property"
             >
-              <div style={{ fontSize: 12, fontWeight: 600, color: T.text1 }}>{j.shortName}</div>
-              {currentDraw ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
-                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: DRAW_STATUS[currentDraw.status].color }} />
-                  <span style={{ fontSize: 10, color: T.text3 }}>Draw #{currentDraw.num} &middot; {DRAW_STATUS[currentDraw.status].label}</span>
+              <Plus className="h-3 w-3" strokeWidth={2.5} />
+            </button>
+          }
+        >
+          Active Builds
+        </SectionHeader>
+        <div className="space-y-1">
+          {builds.map((j) => {
+            const jDraws = j.draws || [];
+            const currentDraw = jDraws[jDraws.length - 1];
+            const statusKey = currentDraw?.status;
+            const ledColor =
+              statusKey === "funded"
+                ? "green"
+                : statusKey === "in_review"
+                ? "blue"
+                : statusKey === "submitted"
+                ? "purple"
+                : "amber";
+            return (
+              <button
+                key={j.id}
+                onClick={() => handleSelectBuild(j.id)}
+                className="press w-full rounded-xl px-3 py-2.5 text-left hover:shadow-recessed-sm transition-all"
+              >
+                <div className="text-[12px] font-semibold text-ink">
+                  {j.shortName}
                 </div>
-              ) : (
-                <div style={{ fontSize: 10, color: T.text3, marginTop: 3 }}>No draws</div>
-              )}
+                {currentDraw ? (
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <LED color={ledColor} size={6} pulse={false} />
+                    <span className="text-[10px] font-mono text-label">
+                      Draw #{currentDraw.num} · {DRAW_STATUS[statusKey]?.label}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-1 text-[10px] font-mono text-label">
+                    No draws
+                  </div>
+                )}
+              </button>
+            );
+          })}
+          {builds.length === 0 && (
+            <div className="px-3 py-2 text-[11px] font-mono text-label/80">
+              No active builds
             </div>
-          );
-        })}
-        {builds.length === 0 && <div style={{ padding: "8px 12px", fontSize: 11, color: T.text3 }}>No active builds</div>}
+          )}
+        </div>
       </nav>
 
+      {/* Sidebar footer — system status plate */}
+      <div className="border-t border-[rgba(74,85,104,0.1)] px-5 py-3 flex items-center justify-between">
+        <StatusPill color="green" label="Operational" pulse />
+        <Stamp className="text-[8px] text-label/70">v1.0</Stamp>
+      </div>
     </>
   );
 
   return (
     <div
-      style={{
-        fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
-        background: T.bg0,
-        minHeight: "100vh",
-        color: T.text0,
-        display: "flex",
-        flexDirection: isMobile ? "column" : "row",
-        fontSize: 14,
-        opacity: 1,
-        paddingBottom: isMobile ? 60 : 0,
-      }}
+      className={
+        "min-h-screen bg-chassis text-ink flex " +
+        (isMobile ? "flex-col pb-[60px]" : "flex-row")
+      }
     >
       {showAddJob && (
-        <AddJobModal onClose={() => setShowAddJob(false)} onSubmit={addProperty} />
+        <AddJobModal
+          onClose={() => setShowAddJob(false)}
+          onSubmit={addProperty}
+        />
       )}
 
       {/* Desktop sidebar */}
       {!isMobile && (
-        <aside style={{ width: 220, flexShrink: 0, background: T.bg1, borderRight: `1px solid ${T.border}`, display: "flex", flexDirection: "column", position: "sticky", top: 0, height: "100vh" }}>
+        <aside
+          className="w-[240px] shrink-0 sticky top-0 h-screen flex flex-col bg-chassis border-r border-[rgba(74,85,104,0.1)]"
+          style={{
+            boxShadow: "2px 0 8px rgba(186,190,204,0.25)",
+          }}
+        >
           {sidebarContent}
         </aside>
       )}
 
-      {/* Mobile sidebar overlay */}
+      {/* Mobile slide-in sidebar */}
       {isMobile && sidebarOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex" }}>
-          <div onClick={() => setSidebarOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)" }} />
-          <aside style={{ width: 280, background: T.bg1, display: "flex", flexDirection: "column", position: "relative", zIndex: 1, height: "100vh", overflowY: "auto" }}>
+        <div className="fixed inset-0 z-50 flex">
+          <div
+            onClick={() => setSidebarOpen(false)}
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+          />
+          <aside className="relative z-10 w-[280px] h-screen flex flex-col bg-chassis overflow-y-auto shadow-floating">
             {sidebarContent}
           </aside>
         </div>
       )}
 
-      {/* Main area */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        {/* Header */}
+      {/* Main column */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top header plate */}
         <header
+          className={
+            "sticky top-0 z-10 flex items-center justify-between border-b border-[rgba(74,85,104,0.08)] bg-chassis " +
+            (isMobile ? "h-14 px-4" : "h-[72px] px-8")
+          }
           style={{
-            height: isMobile ? 50 : 58,
-            borderBottom: `1px solid ${T.border}`,
-            background: T.bg1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: isMobile ? "0 16px" : "0 32px",
-            flexShrink: 0,
-            position: "sticky",
-            top: 0,
-            zIndex: 10,
+            boxShadow: "0 4px 12px rgba(186,190,204,0.25)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="flex items-center gap-3">
             {isMobile && (
-              <button onClick={() => setSidebarOpen(true)} style={{ background: "transparent", border: "none", color: T.text1, cursor: "pointer", padding: 4, display: "flex" }}>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="press flex h-10 w-10 items-center justify-center rounded-xl shadow-card"
+              >
+                <Menu className="h-4 w-4" />
               </button>
             )}
             <div>
-              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: isMobile ? 15 : 17, fontWeight: 700, color: T.text0, letterSpacing: "-0.01em" }}>{TITLES[view]}</div>
+              <div
+                className={
+                  (isMobile ? "text-[15px]" : "text-lg") +
+                  " font-bold text-ink emboss leading-tight tracking-tight"
+                }
+              >
+                {TITLES[view]}
+              </div>
               {!isMobile && (
-                <div style={{ fontSize: 10, color: T.text3, marginTop: 1 }}>
-                  {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-                </div>
+                <Stamp className="text-[9px] mt-0.5">
+                  {new Date().toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </Stamp>
               )}
             </div>
           </div>
           {!isMobile && (
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <button onClick={() => setShowAddJob(true)} style={{ background: T.goldDim, border: `1px solid ${T.goldBorder}`, borderRadius: 8, color: T.gold, fontSize: 12, fontWeight: 600, padding: "7px 16px", cursor: "pointer", letterSpacing: "0.04em", fontFamily: "inherit" }}>+ Add Property</button>
-              <button onClick={signOut} style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, color: T.text3, fontSize: 11, padding: "7px 14px", cursor: "pointer", fontFamily: "inherit" }}>Sign Out</button>
+            <div className="flex items-center gap-3">
+              <StatusPill color="green" label="Live" />
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => setShowAddJob(true)}
+                iconLeft={<Plus className="h-3.5 w-3.5" strokeWidth={2.5} />}
+              >
+                Add Property
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={signOut}
+                iconLeft={<LogOut className="h-3 w-3" />}
+              >
+                Sign Out
+              </Button>
             </div>
           )}
         </header>
 
         {/* Content */}
-        <main style={{ flex: 1, padding: isMobile ? "16px" : "28px 32px", overflowY: "auto" }}>
-          {view === "portfolio" && <PortfolioView onSelectManaged={handleSelectManaged} onSelectBuild={handleSelectBuild} />}
-          {view === "properties" && <PropertiesView selectedId={selectedManagedId} />}
+        <main
+          className={
+            "flex-1 overflow-y-auto " +
+            (isMobile ? "p-4" : "px-8 py-8")
+          }
+        >
+          {view === "portfolio" && (
+            <PortfolioView
+              onSelectManaged={handleSelectManaged}
+              onSelectBuild={handleSelectBuild}
+            />
+          )}
+          {view === "properties" && (
+            <PropertiesView selectedId={selectedManagedId} />
+          )}
           {view === "draws" && <DrawsView selectedId={selectedBuildId} />}
           {view === "invoices" && <InvoicesView />}
         </main>
@@ -326,19 +433,12 @@ export default function App() {
 
       {/* Mobile bottom nav */}
       {isMobile && (
-        <nav style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 60,
-          background: T.bg1,
-          borderTop: `1px solid ${T.border}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-around",
-          zIndex: 20,
-        }}>
+        <nav
+          className="fixed bottom-0 left-0 right-0 h-[60px] z-20 bg-chassis border-t border-[rgba(74,85,104,0.08)] flex items-center justify-around"
+          style={{
+            boxShadow: "0 -4px 12px rgba(186,190,204,0.3)",
+          }}
+        >
           {NAV.map((n) => {
             const isActive = view === n.id;
             const Icon = n.Icon;
@@ -346,19 +446,23 @@ export default function App() {
               <button
                 key={n.id}
                 onClick={() => handleNav(n.id)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 4,
-                  cursor: "pointer",
-                  padding: "6px 12px",
-                }}
+                className="press flex flex-col items-center gap-1 px-3 py-1.5"
               >
-                <Icon active={isActive} />
-                <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 500, color: isActive ? T.gold : T.text3, letterSpacing: "0.04em" }}>{n.label}</span>
+                <Icon
+                  className="h-5 w-5"
+                  strokeWidth={isActive ? 2.2 : 1.6}
+                  style={{
+                    color: isActive ? "#ff4757" : "#4a5568",
+                  }}
+                />
+                <span
+                  className={
+                    "text-[9px] font-mono uppercase tracking-[0.08em] " +
+                    (isActive ? "text-accent font-bold" : "text-label")
+                  }
+                >
+                  {n.label}
+                </span>
               </button>
             );
           })}

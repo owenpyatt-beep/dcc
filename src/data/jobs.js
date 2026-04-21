@@ -1,30 +1,42 @@
+// Industrial Skeuomorphism palette tokens.
+// Legacy keys (bg0..bg4, gold, text0..text3) remain for compatibility — values
+// remapped to the light/chassis system. Prefer Tailwind classes (bg-chassis,
+// text-ink, shadow-card, etc.) in new code.
 export const T = {
-  bg0: "#080909",
-  bg1: "#0e0f10",
-  bg2: "#141517",
-  bg3: "#1c1e20",
-  bg4: "#242628",
-  border: "rgba(255,255,255,0.055)",
-  borderHover: "rgba(255,255,255,0.12)",
-  gold: "#c9a96e",
-  goldDim: "rgba(201,169,110,0.15)",
-  goldBorder: "rgba(201,169,110,0.25)",
-  blue: "#6b9fd4",
-  blueDim: "rgba(107,159,212,0.12)",
-  green: "#5fa876",
-  greenDim: "rgba(95,168,118,0.12)",
-  amber: "#d4883a",
-  amberDim: "rgba(212,136,58,0.12)",
-  red: "#c0574a",
-  redDim: "rgba(192,87,74,0.12)",
-  text0: "#f2ede4",
-  text1: "#a8a39a",
-  text2: "#6a6560",
-  text3: "#3e3c39",
+  // Surfaces (light chassis, recessed, panels)
+  bg0: "#e0e5ec", // chassis (was near-black)
+  bg1: "#e0e5ec",
+  bg2: "#e0e5ec",
+  bg3: "#f0f2f5", // raised panel
+  bg4: "#d1d9e6", // recessed well
+
+  // Borders + dividers
+  border: "rgba(74, 85, 104, 0.12)",
+  borderHover: "rgba(74, 85, 104, 0.28)",
+
+  // Accent — formerly "gold", now Braun safety orange
+  gold: "#ff4757",
+  goldDim: "rgba(255, 71, 87, 0.12)",
+  goldBorder: "rgba(255, 71, 87, 0.30)",
+
+  // Status colors (LED tones)
+  blue: "#3b82f6",
+  blueDim: "rgba(59, 130, 246, 0.12)",
+  green: "#22c55e",
+  greenDim: "rgba(34, 197, 94, 0.12)",
+  amber: "#f59e0b",
+  amberDim: "rgba(245, 158, 11, 0.12)",
+  red: "#ef4444",
+  redDim: "rgba(239, 68, 68, 0.12)",
+
+  // Inks (dark text on light surface)
+  text0: "#2d3436",
+  text1: "#4a5568",
+  text2: "#636e72",
+  text3: "#9ca3af",
 };
 
 export const SEED_PROPERTIES = [
-  // ── Managed Properties ──────────────────────────────
   {
     id: "P-0001",
     category: "managed",
@@ -41,23 +53,19 @@ export const SEED_PROPERTIES = [
     delinquentAmount60: 0,
     monthlyIncome: 277923,
     collectedIncome: 256431,
-    // March 2026
     monthRentalIncome: 256431,
     monthTotalIncome: 277923,
     monthExpenses: 280,
     monthNOI: 278203,
-    // YTD (Jan-Mar 2026)
     ytdRentalIncome: 507466,
     ytdTotalIncome: 543181,
     ytdExpenses: 560,
     ytdNOI: 543741,
-    // Vacancy breakdown
     vacantRented: 14,
     vacantUnrented: 5,
     noticeRented: 6,
     noticeUnrented: 14,
   },
-  // ── Active Builds ───────────────────────────────────
   {
     id: "P-0002",
     category: "build",
@@ -89,7 +97,6 @@ export const SEED_PROPERTIES = [
     ],
     tradeBreakdown: [],
     cashflow: [],
-    // leasing overlay (buildings coming online)
     hasLeasing: true,
     totalUnits: 0,
     totalBuildings: 0,
@@ -103,6 +110,6 @@ export const SEED_PROPERTIES = [
 export const DRAW_STATUS = {
   compiling: { label: "Draft", color: T.amber, bg: T.amberDim },
   in_review: { label: "In Review", color: T.blue, bg: T.blueDim },
-  submitted: { label: "Submitted", color: "#a680d4", bg: "rgba(166,128,212,0.12)" },
+  submitted: { label: "Submitted", color: "#8b5cf6", bg: "rgba(139,92,246,0.12)" },
   funded: { label: "Funded", color: T.green, bg: T.greenDim },
 };

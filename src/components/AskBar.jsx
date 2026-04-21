@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { T } from "../data/jobs";
-import { Mono } from "../utils/format";
+import { Search, X } from "lucide-react";
 import { authFetch } from "../utils/supabase";
+import { Button } from "./ui/Button";
+import { LED } from "./ui/LED";
+import { Stamp } from "./ui/Typography";
 
 export default function AskBar() {
   const [question, setQuestion] = useState("");
@@ -38,78 +40,71 @@ export default function AskBar() {
 
   return (
     <div>
-      <form onSubmit={handleAsk} style={{ display: "flex", gap: 8, marginBottom: answer || error ? 16 : 0 }}>
-        <div style={{ flex: 1, position: "relative" }}>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
-          >
-            <circle cx="11" cy="11" r="7" stroke={T.text3} strokeWidth="1.5" />
-            <path d="M16 16l4.5 4.5" stroke={T.text3} strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
+      <form onSubmit={handleAsk} className="flex items-stretch gap-3">
+        <div className="relative flex-1">
+          <Search
+            className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-label/70 pointer-events-none"
+            strokeWidth={1.8}
+          />
           <input
             type="text"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             placeholder="Ask about vendors, draws, payments..."
-            style={{
-              width: "100%",
-              background: T.bg2,
-              border: `1px solid ${T.border}`,
-              borderRadius: 8,
-              color: T.text0,
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: 13,
-              padding: "10px 14px 10px 36px",
-              outline: "none",
-            }}
+            className="w-full rounded-xl bg-chassis pl-11 pr-4 h-12 text-sm font-mono text-ink placeholder:text-label/60 shadow-recessed border-none outline-none transition-shadow focus-visible:shadow-[inset_4px_4px_8px_#babecc,inset_-4px_-4px_8px_#ffffff,0_0_0_2px_var(--accent)]"
           />
         </div>
-        <button
+        <Button
           type="submit"
+          variant="primary"
+          size="md"
           disabled={loading || !question.trim()}
-          style={{
-            background: T.goldDim,
-            border: `1px solid ${T.goldBorder}`,
-            borderRadius: 8,
-            color: T.gold,
-            fontSize: 12,
-            fontWeight: 600,
-            padding: "0 18px",
-            cursor: loading ? "wait" : "pointer",
-            fontFamily: "inherit",
-            opacity: loading || !question.trim() ? 0.5 : 1,
-            whiteSpace: "nowrap",
-          }}
         >
           {loading ? "Searching..." : "Ask"}
-        </button>
+        </Button>
       </form>
 
       {error && (
-        <div style={{ background: T.redDim, border: `1px solid ${T.red}44`, borderRadius: 8, padding: "12px 16px", fontSize: 12, color: T.red }}>
-          {error}
+        <div className="mt-4 rounded-xl px-4 py-3 bg-chassis shadow-recessed-sm flex items-center gap-3">
+          <LED color="red" size={9} pulse />
+          <span className="font-mono text-xs text-[#b91c1c]">
+            ERROR — {error}
+          </span>
         </div>
       )}
 
       {answer && (
-        <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "18px 22px" }}>
-          <div style={{ fontSize: 13, color: T.text0, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{answer}</div>
+        <div className="mt-4 rounded-2xl bg-chassis p-6 shadow-card relative">
+          <div className="flex items-center gap-2 mb-3">
+            <LED color="green" size={8} pulse />
+            <Stamp>Response</Stamp>
+          </div>
+          <div className="text-sm text-ink leading-relaxed whitespace-pre-wrap">
+            {answer}
+          </div>
           {meta && (
-            <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.border}`, display: "flex", gap: 16, fontSize: 10, color: T.text3 }}>
-              <span>Searched {meta.transactionsSearched} transactions</span>
-              <span>{meta.vendorsFound} vendors</span>
-              <span>{meta.propertiesSearched} properties</span>
+            <div className="mt-4 pt-3 border-t border-[rgba(74,85,104,0.1)] flex flex-wrap gap-4">
+              <Stamp className="text-[9px]">
+                {meta.transactionsSearched} txns
+              </Stamp>
+              <Stamp className="text-[9px]">
+                {meta.vendorsFound} vendors
+              </Stamp>
+              <Stamp className="text-[9px]">
+                {meta.propertiesSearched} properties
+              </Stamp>
             </div>
           )}
           <button
-            onClick={() => { setAnswer(null); setMeta(null); setQuestion(""); }}
-            style={{ marginTop: 10, background: "transparent", border: `1px solid ${T.border}`, borderRadius: 6, color: T.text2, fontSize: 11, padding: "4px 12px", cursor: "pointer", fontFamily: "inherit" }}
+            onClick={() => {
+              setAnswer(null);
+              setMeta(null);
+              setQuestion("");
+            }}
+            className="press absolute top-3 right-3 flex h-7 w-7 items-center justify-center rounded-full text-label hover:text-ink shadow-card"
+            aria-label="Clear"
           >
-            Clear
+            <X className="h-3 w-3" />
           </button>
         </div>
       )}
