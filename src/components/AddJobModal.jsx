@@ -147,7 +147,7 @@ export default function AddJobModal({ onClose, onSubmit }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label>Type</Label>
               <Select
@@ -184,7 +184,7 @@ export default function AddJobModal({ onClose, onSubmit }) {
 
           {category === "build" && (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label>Loan Amount *</Label>
                   <Input
@@ -203,7 +203,7 @@ export default function AddJobModal({ onClose, onSubmit }) {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label>Start Date</Label>
                   <Input
