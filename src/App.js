@@ -258,14 +258,7 @@ export default function App() {
             const jDraws = j.draws || [];
             const currentDraw = jDraws[jDraws.length - 1];
             const statusKey = currentDraw?.status;
-            const ledColor =
-              statusKey === "funded"
-                ? "green"
-                : statusKey === "in_review"
-                ? "blue"
-                : statusKey === "submitted"
-                ? "purple"
-                : "amber";
+            const ledColor = statusKey === "funded" ? "green" : "purple";
             return (
               <button
                 key={j.id}

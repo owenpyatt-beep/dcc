@@ -193,21 +193,18 @@ export default function InvoicesView() {
     const rows = data.map((inv) => [
       `"${(inv.vendor || "").replace(/"/g, '""')}"`,
       `"${(inv.invoiceNumber || "").replace(/"/g, '""')}"`,
-      `"${(inv.invoiceDate || "").replace(/"/g, '""')}"`,
       (inv.amountDue || 0).toFixed(2),
-      `"${(inv.jobName || "").replace(/"/g, '""')}"`,
       `"${mapTrade(inv.tradeCategory).replace(/"/g, '""')}"`,
-      `"${(inv.invoiceType || "standard").replace(/"/g, '""')}"`,
-      `"${(inv.missingDataFlag || "").replace(/"/g, '""')}"`,
+      `"${(inv.invoiceDate || "").replace(/"/g, '""')}"`,
     ]);
     const csv =
-      "vendor,invoiceNumber,invoiceDate,amountDue,jobName,tradeCategory,invoiceType,missingDataFlag\n" +
+      "Vendor,Invoice #,Amount,Category,Date\n" +
       rows.map((r) => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${job.shortName}_Draw${currentDraw.num}_invoices.csv`;
+    a.download = `${job.shortName}_Draw${currentDraw.num}_Disbursement.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };

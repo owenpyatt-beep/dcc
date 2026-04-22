@@ -86,7 +86,7 @@ export const SEED_PROPERTIES = [
     draws: [
       {
         num: 1,
-        status: "compiling",
+        status: "submitted",
         amount: 0,
         invoices: 0,
         submitted: null,
@@ -108,8 +108,6 @@ export const SEED_PROPERTIES = [
 ];
 
 export const DRAW_STATUS = {
-  compiling: { label: "Draft", color: T.amber, bg: T.amberDim },
-  in_review: { label: "In Review", color: T.blue, bg: T.blueDim },
   submitted: { label: "Submitted", color: "#8b5cf6", bg: "rgba(139,92,246,0.12)" },
   funded: { label: "Funded", color: T.green, bg: T.greenDim },
 };

@@ -7,6 +7,12 @@
 import { supabaseAdmin } from "./_supabase.js";
 import { verifyAuth } from "./_auth.js";
 
+const INTERNAL_GC_VENDORS = ["ljld llc", "ljld"];
+const isInternalGC = (v) =>
+  INTERNAL_GC_VENDORS.includes(
+    String(v || "").toLowerCase().replace(/[.,]/g, "").replace(/\s+/g, " ").trim()
+  );
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "POST required" });
@@ -56,12 +62,20 @@ export default async function handler(req, res) {
     const vendorSummary = Object.values(vendorTotals)
       .map((v) => ({
         vendor: v.vendor,
+        internalGC: isInternalGC(v.vendor),
         totalPaid: v.totalPaid.toFixed(2),
         transactions: v.transactionCount,
         properties: [...v.properties].join(", "),
         dateRange: v.dates.length > 0 ? `${v.dates[0]} to ${v.dates[v.dates.length - 1]}` : "N/A",
       }))
       .sort((a, b) => parseFloat(b.totalPaid) - parseFloat(a.totalPaid));
+
+    const internalGCTotal = vendorSummary
+      .filter((v) => v.internalGC)
+      .reduce((s, v) => s + parseFloat(v.totalPaid), 0);
+    const externalTotal = vendorSummary
+      .filter((v) => !v.internalGC)
+      .reduce((s, v) => s + parseFloat(v.totalPaid), 0);
 
     // Build property summary
     const propertySummary = propsRes.data.map((p) => ({
@@ -87,6 +101,12 @@ export default async function handler(req, res) {
 
     // Build context for Claude
     const context = `You are the Debrecht Command Center AI assistant. You answer questions about Debrecht Properties' construction projects and managed properties.
+
+## Business Structure Note
+LJLD LLC is Debrecht's **internal general contractor arm** — it's how Lorenzo's team pays themselves for GC work. Treat payments to LJLD LLC as internal allocations, not third-party vendor spend. When ranking "top vendors" or answering "who did we pay most," include LJLD but label it as internal so the user can distinguish internal vs external spend. Vendors in the data below are marked with \`internalGC: true\` when they fall into this bucket.
+
+Internal GC (LJLD) total: $${internalGCTotal.toLocaleString()}
+External vendor total: $${externalTotal.toLocaleString()}
 
 ## Properties
 ${JSON.stringify(propertySummary, null, 2)}

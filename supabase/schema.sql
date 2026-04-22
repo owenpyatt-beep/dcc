@@ -58,7 +58,7 @@ create table draws (
   id uuid primary key default gen_random_uuid(),
   property_id uuid not null references properties(id) on delete cascade,
   num integer not null,
-  status text not null default 'compiling' check (status in ('compiling', 'in_review', 'submitted', 'funded')),
+  status text not null default 'submitted' check (status in ('submitted', 'funded')),
   amount numeric(12,2) default 0,
   invoice_count integer default 0,
   submitted_date text,

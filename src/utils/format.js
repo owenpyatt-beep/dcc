@@ -24,8 +24,6 @@ export const Mono = ({ children, style = {}, className = "" }) => (
 // Draw/status key → LED color (for the new palette).
 // Keeps DRAW_STATUS colors working in Recharts, while badges switch to LEDs.
 const STATUS_LED = {
-  compiling: "amber",
-  in_review: "blue",
   submitted: "purple",
   funded: "green",
 };

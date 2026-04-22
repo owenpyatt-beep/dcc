@@ -207,7 +207,7 @@ export function JobsProvider({ children }) {
       await supabase.from("draws").insert({
         property_id: data.id,
         num: 1,
-        status: "compiling",
+        status: "submitted",
         amount: 0,
         invoice_count: 0,
       });
@@ -259,7 +259,7 @@ export function JobsProvider({ children }) {
     const { error } = await supabase.from("draws").insert({
       property_id: propertyId,
       num: maxNum + 1,
-      status: "compiling",
+      status: "submitted",
       amount: 0,
       invoice_count: 0,
     });

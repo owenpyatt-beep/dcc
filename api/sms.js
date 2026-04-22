@@ -5,6 +5,12 @@
 
 import { supabaseAdmin } from "./_supabase.js";
 
+const INTERNAL_GC_VENDORS = ["ljld llc", "ljld"];
+const isInternalGC = (v) =>
+  INTERNAL_GC_VENDORS.includes(
+    String(v || "").toLowerCase().replace(/[.,]/g, "").replace(/\s+/g, " ").trim()
+  );
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).send("POST required");
@@ -49,7 +55,10 @@ export default async function handler(req, res) {
     }
 
     const vendorSummary = Object.values(vendorTotals)
-      .map((v) => `${v.vendor}: $${v.totalPaid.toLocaleString()} (${v.count} payments, ${[...v.properties].join(", ")})`)
+      .map((v) => {
+        const tag = isInternalGC(v.vendor) ? " [INTERNAL GC]" : "";
+        return `${v.vendor}${tag}: $${v.totalPaid.toLocaleString()} (${v.count} payments, ${[...v.properties].join(", ")})`;
+      })
       .join("\n");
 
     const propertySummary = propsRes.data.map((p) => {
@@ -66,6 +75,8 @@ export default async function handler(req, res) {
     }).join("\n");
 
     const context = `You are the Debrecht Command Center SMS assistant. Answer questions about Debrecht Properties concisely (SMS has a 1600 char limit). Use dollar amounts with commas. Be direct.
+
+NOTE: LJLD LLC is Debrecht's internal GC arm (how Lorenzo's team pays themselves) — include it in totals but label it as internal, not a third-party vendor.
 
 PROPERTIES:
 ${propertySummary}

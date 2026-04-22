@@ -20,18 +20,26 @@ import {
 } from "../utils/format";
 import { useJobs } from "../context/JobsContext";
 import { supabase } from "../utils/supabase";
+import { isInternalGC } from "../utils/vendors";
 import { Button } from "./ui/Button";
 import { Stamp } from "./ui/Typography";
 import { LED } from "./ui/LED";
 
+function InternalGCChip() {
+  return (
+    <span
+      className="shrink-0 inline-flex items-center rounded-md px-1.5 py-[1px] bg-chassis shadow-recessed-sm font-mono text-[8px] font-bold uppercase tracking-[0.1em] text-label"
+      title="LJLD is Debrecht's internal GC arm"
+    >
+      Internal
+    </span>
+  );
+}
+
 const NEXT_STAGE = {
-  compiling: "in_review",
-  in_review: "submitted",
   submitted: "funded",
 };
 const NEXT_LABEL = {
-  compiling: "Submit for Review",
-  in_review: "Mark Submitted",
   submitted: "Mark as Funded",
 };
 
@@ -148,7 +156,6 @@ export default function DrawsView({ selectedId }) {
       year: "numeric",
     });
     const extra = {};
-    if (next === "submitted" || next === "in_review") extra.submitted = today;
     if (next === "funded") extra.funded = today;
     updateDrawStatus(job.id, drawNum, next, extra);
   };
@@ -371,8 +378,13 @@ export default function DrawsView({ selectedId }) {
                         style={{ background: COLORS[i % COLORS.length] }}
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="text-[13px] font-semibold text-ink truncate">
-                          {name}
+                        <div className="flex items-center gap-2">
+                          <div className="text-[13px] font-semibold text-ink truncate">
+                            {name}
+                          </div>
+                          {viewMode === "vendor" && isInternalGC(name) && (
+                            <InternalGCChip />
+                          )}
                         </div>
                         <div className="mt-0.5 text-[10px] font-mono text-label">
                           {item.count} payment{item.count !== 1 ? "s" : ""}
@@ -443,6 +455,7 @@ export default function DrawsView({ selectedId }) {
                 <div className="text-[12px] font-semibold text-ink truncate">
                   {v.vendor}
                 </div>
+                {isInternalGC(v.vendor) && <InternalGCChip />}
               </div>
               <Mono className="text-[12px] font-bold text-accent ml-3">
                 {fc(v.total)}
