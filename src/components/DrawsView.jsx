@@ -5,6 +5,7 @@ import {
   LayoutList,
   Tag,
   Loader2,
+  Trash2,
   X as XIcon,
 } from "lucide-react";
 import { DRAW_STATUS } from "../data/jobs";
@@ -83,7 +84,7 @@ function SegmentToggle({ value, onChange, options }) {
 }
 
 export default function DrawsView({ selectedId, onGoToLjld }) {
-  const { builds, addDraw, updateDrawStatus, updateProperty } = useJobs();
+  const { builds, addDraw, updateDrawStatus, updateProperty, reload } = useJobs();
   const [selectedJob, setSelectedJob] = useState(selectedId || builds[0]?.id);
   const [selectedDraw, setSelectedDraw] = useState(null);
   const [creatingDraw, setCreatingDraw] = useState(false);
@@ -166,6 +167,31 @@ export default function DrawsView({ selectedId, onGoToLjld }) {
     setSelectedDraw(next);
     if (next && typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const handleDeleteDraw = async (draw) => {
+    if (draw.status === "funded") return;
+    const msg =
+      `Delete Draw #${draw.num}? This will remove ${draw.invoices || 0} invoice${draw.invoices === 1 ? "" : "s"} ` +
+      `attached to it. Any LJLD invoice will be detached (not deleted). This can't be undone.`;
+    if (!window.confirm(msg)) return;
+    try {
+      // Detach any LJLD invoice so the LJLD record survives
+      await supabase
+        .from("ljld_invoices")
+        .update({ draw_id: null })
+        .eq("draw_id", draw.id);
+      // Remove all invoices on this draw (including any LJLD aggregate row)
+      await supabase.from("invoices").delete().eq("draw_id", draw.id);
+      // Delete the draw itself
+      const { error } = await supabase.from("draws").delete().eq("id", draw.id);
+      if (error) throw error;
+      // If we were editing this draw, drop the selection
+      if (selectedDraw?.id === draw.id) setSelectedDraw(null);
+      await reload();
+    } catch (err) {
+      window.alert("Delete failed: " + err.message);
     }
   };
 
@@ -625,18 +651,32 @@ export default function DrawsView({ selectedId, onGoToLjld }) {
                     <StatusDot status={d.status} />
                   </td>
                   <td className="px-6 py-3.5 text-right">
-                    {nextStage && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAdvance(d.num, d.status);
-                        }}
-                        className="press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-chassis shadow-card text-[10px] font-mono uppercase tracking-[0.08em] font-bold text-accent hover:shadow-floating whitespace-nowrap"
-                      >
-                        {NEXT_LABEL[d.status]}
-                        <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
-                      </button>
-                    )}
+                    <div className="flex items-center justify-end gap-2">
+                      {nextStage && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAdvance(d.num, d.status);
+                          }}
+                          className="press inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-chassis shadow-card text-[10px] font-mono uppercase tracking-[0.08em] font-bold text-accent hover:shadow-floating whitespace-nowrap"
+                        >
+                          {NEXT_LABEL[d.status]}
+                          <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
+                        </button>
+                      )}
+                      {d.status !== "funded" && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteDraw(d);
+                          }}
+                          className="press rounded-md p-1.5 text-label hover:text-[#b91c1c] shadow-recessed-sm"
+                          title="Delete draw"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
