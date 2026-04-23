@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import {
   Upload,
@@ -8,12 +8,13 @@ import {
   Download,
   AlertTriangle,
   CheckCircle2,
+  Trash2,
 } from "lucide-react";
 import { fc, pct, Mono, Badge, ChartTip, COLORS } from "../utils/format";
 import { extractInvoices } from "../utils/extraction";
 import { mapTrade, getTradeCategories } from "../utils/tradeMap";
 import { useJobs } from "../context/JobsContext";
-import { authFetch } from "../utils/supabase";
+import { authFetch, supabase } from "../utils/supabase";
 import { Button } from "./ui/Button";
 import { Stamp } from "./ui/Typography";
 import { LED } from "./ui/LED";
@@ -76,17 +77,21 @@ function EmptyState({ children }) {
   );
 }
 
-export default function InvoicesView({ jobId }) {
+export default function InvoicesView({ jobId, drawNum }) {
   const { builds, commitExtraction } = useJobs();
   const [selectedJob, setSelectedJob] = useState(jobId || builds[0]?.id);
   const effectiveJobId = jobId || selectedJob;
   const job = builds.find((j) => j.id === effectiveJobId) || builds[0];
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (jobId) setSelectedJob(jobId);
   }, [jobId]);
   const jobDraws = job?.draws || [];
-  const currentDraw = jobDraws[jobDraws.length - 1];
+  const fallbackDraw = jobDraws[jobDraws.length - 1];
+  const targetDraw =
+    drawNum != null
+      ? jobDraws.find((d) => d.num === drawNum) || fallbackDraw
+      : fallbackDraw;
 
   const fileRef = useRef(null);
   const [extracting, setExtracting] = useState(false);
@@ -94,8 +99,52 @@ export default function InvoicesView({ jobId }) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
 
+  // Load saved invoices whenever the targeted draw changes (so editing a
+  // historical draw pre-populates the editable table).
+  useEffect(() => {
+    if (!targetDraw?.id) {
+      setExtracted(null);
+      setSaved(false);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from("invoices")
+      .select("*")
+      .eq("draw_id", targetDraw.id)
+      .order("created_at")
+      .then(({ data, error: loadErr }) => {
+        if (cancelled) return;
+        if (loadErr || !data) {
+          setExtracted(null);
+          return;
+        }
+        if (data.length === 0) {
+          setExtracted(null);
+          return;
+        }
+        const loaded = data.map((row, i) => ({
+          id: i,
+          dbId: row.id,
+          vendor: row.vendor || "",
+          invoiceNumber: row.invoice_number || "",
+          invoiceDate: row.invoice_date || "",
+          amountDue: parseFloat(row.amount_due) || 0,
+          jobName: row.job_name || "",
+          tradeCategory: row.trade_category || "General Construction",
+          invoiceType: row.invoice_type || "standard",
+          missingDataFlag: row.missing_data_flag || null,
+        }));
+        setExtracted(loaded);
+        setSaved(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [targetDraw?.id]);
+
   if (!job) return <EmptyState>Add a build property to start</EmptyState>;
-  if (!currentDraw)
+  if (!targetDraw)
     return (
       <EmptyState>
         No draws for {job.shortName} — create one from the Draws tab
@@ -107,14 +156,19 @@ export default function InvoicesView({ jobId }) {
     if (!file) return;
     setExtracting(true);
     setError(null);
-    setExtracted(null);
     setSaved(false);
     try {
       const { invoices } = await extractInvoices(file);
-      const normalized = invoices.map((inv) => ({
+      const baseId = (extracted || []).reduce(
+        (m, inv) => Math.max(m, typeof inv.id === "number" ? inv.id : -1),
+        -1
+      );
+      const normalized = invoices.map((inv, i) => ({
         ...inv,
+        id: baseId + 1 + i,
         tradeCategory: mapTrade(inv.tradeCategory),
       }));
+      let newRows = normalized;
       try {
         const dupRes = await authFetch("/api/check-duplicates", {
           method: "POST",
@@ -122,13 +176,12 @@ export default function InvoicesView({ jobId }) {
         });
         if (dupRes.ok) {
           const { invoices: checked } = await dupRes.json();
-          setExtracted(checked);
-        } else {
-          setExtracted(normalized);
+          newRows = checked;
         }
       } catch (_) {
-        setExtracted(normalized);
+        // fall back to normalized
       }
+      setExtracted((prev) => [...(prev || []), ...newRows]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -151,9 +204,14 @@ export default function InvoicesView({ jobId }) {
     setSaved(false);
   };
 
+  const removeInvoice = (id) => {
+    setExtracted((prev) => (prev || []).filter((inv) => inv.id !== id));
+    setSaved(false);
+  };
+
   const handleSaveToDraw = () => {
     if (!extracted) return;
-    commitExtraction(job.id, currentDraw.num, extracted);
+    commitExtraction(job.id, targetDraw.num, extracted);
     setSaved(true);
   };
 
@@ -174,7 +232,7 @@ export default function InvoicesView({ jobId }) {
         .sort((a, b) => b.amount - a.amount)
     : null;
 
-  const savedInvoices = currentDraw.extractedInvoices;
+  const savedInvoices = targetDraw.extractedInvoices;
   const staticBreakdown = job.tradeBreakdown || [];
   const displayData = tradeGroups
     ? tradeGroups.map((g) => ({ trade: g.trade, amount: g.amount }))
@@ -187,8 +245,8 @@ export default function InvoicesView({ jobId }) {
         total: extracted.reduce((s, inv) => s + inv.amountDue, 0),
       }
     : {
-        count: currentDraw.invoices,
-        total: currentDraw.amount,
+        count: targetDraw.invoices,
+        total: targetDraw.amount,
       };
 
   const exportCsv = () => {
@@ -208,7 +266,7 @@ export default function InvoicesView({ jobId }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${job.shortName}_Draw${currentDraw.num}_Disbursement.csv`;
+    a.download = `${job.shortName}_Draw${targetDraw.num}_Disbursement.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -319,7 +377,7 @@ export default function InvoicesView({ jobId }) {
           <div className="rounded-2xl bg-chassis shadow-card overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-[rgba(74,85,104,0.08)]">
               <Stamp>
-                Trade Breakdown · {job.shortName} Draw #{currentDraw.num}
+                Trade Breakdown · {job.shortName} Draw #{targetDraw.num}
               </Stamp>
               <div className="flex items-center gap-3">
                 {extracted && !saved && (
@@ -465,29 +523,40 @@ export default function InvoicesView({ jobId }) {
                                 </div>
                               </td>
                               <td className="px-4 py-2.5 text-right">
-                                {inv.duplicate ? (
-                                  <div className="flex flex-col items-end gap-1.5">
-                                    <Badge
-                                      label={
-                                        inv.duplicateExact
-                                          ? "Duplicate"
-                                          : "Possible Match"
-                                      }
-                                      ledColor="red"
-                                    />
-                                    {inv.duplicateRefs &&
-                                      inv.duplicateRefs[0] && (
-                                        <span className="font-mono text-[9px] text-label whitespace-nowrap">
-                                          Draw #
-                                          {inv.duplicateRefs[0].drawNum}
-                                          {!inv.duplicateAmountMatches &&
-                                            " (amt diff)"}
-                                        </span>
-                                      )}
-                                  </div>
-                                ) : (
-                                  <Badge label="New" ledColor="green" />
-                                )}
+                                <div className="flex items-center justify-end gap-2">
+                                  {inv.duplicate ? (
+                                    <div className="flex flex-col items-end gap-1.5">
+                                      <Badge
+                                        label={
+                                          inv.duplicateExact
+                                            ? "Duplicate"
+                                            : "Possible Match"
+                                        }
+                                        ledColor="red"
+                                      />
+                                      {inv.duplicateRefs &&
+                                        inv.duplicateRefs[0] && (
+                                          <span className="font-mono text-[9px] text-label whitespace-nowrap">
+                                            Draw #
+                                            {inv.duplicateRefs[0].drawNum}
+                                            {!inv.duplicateAmountMatches &&
+                                              " (amt diff)"}
+                                          </span>
+                                        )}
+                                    </div>
+                                  ) : inv.dbId ? (
+                                    <Badge label="Saved" ledColor="blue" />
+                                  ) : (
+                                    <Badge label="New" ledColor="green" />
+                                  )}
+                                  <button
+                                    onClick={() => removeInvoice(inv.id)}
+                                    className="press rounded-md p-1.5 text-label hover:text-[#b91c1c] shadow-recessed-sm"
+                                    title="Remove row"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );

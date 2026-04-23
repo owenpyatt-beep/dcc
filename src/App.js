@@ -37,9 +37,9 @@ function useIsMobile(breakpoint = 768) {
 
 const NAV = [
   { id: "properties", label: "Properties", Icon: Building2 },
+  { id: "ljld", label: "LJLD LLC", Icon: FileText },
   { id: "draws", label: "Draws", Icon: Layers },
   { id: "invoice-db", label: "Invoice Database", Icon: Database },
-  { id: "ljld", label: "LJLD LLC", Icon: FileText },
 ];
 
 const TITLES = {
@@ -159,6 +159,7 @@ export default function App() {
   const [view, setView] = useState("properties");
   const [selectedPropertyId, setSelectedPropertyId] = useState(null);
   const [selectedBuildId, setSelectedBuildId] = useState(null);
+  const [selectedLjldPropertyId, setSelectedLjldPropertyId] = useState(null);
   const [showAddJob, setShowAddJob] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -181,6 +182,12 @@ export default function App() {
   const handleGoToDraws = (id) => {
     setSelectedBuildId(id);
     setView("draws");
+    setSidebarOpen(false);
+  };
+
+  const handleGoToLjld = (id) => {
+    if (id) setSelectedLjldPropertyId(id);
+    setView("ljld");
     setSidebarOpen(false);
   };
 
@@ -394,9 +401,16 @@ export default function App() {
               onGoToDraws={handleGoToDraws}
             />
           )}
-          {view === "draws" && <DrawsView selectedId={selectedBuildId} />}
+          {view === "draws" && (
+            <DrawsView
+              selectedId={selectedBuildId}
+              onGoToLjld={handleGoToLjld}
+            />
+          )}
           {view === "invoice-db" && <InvoiceDatabaseView />}
-          {view === "ljld" && <LjldView />}
+          {view === "ljld" && (
+            <LjldView selectedPropertyId={selectedLjldPropertyId} />
+          )}
         </main>
       </div>
 

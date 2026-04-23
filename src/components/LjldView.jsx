@@ -65,10 +65,14 @@ function nextInvoiceNumber() {
   return `LJLD-${stamp}-${suffix}`;
 }
 
-export default function LjldView() {
+export default function LjldView({ selectedPropertyId }) {
   const { properties, builds } = useJobs();
 
-  const [propertyId, setPropertyId] = useState("");
+  const [propertyId, setPropertyId] = useState(selectedPropertyId || "");
+
+  useEffect(() => {
+    if (selectedPropertyId) setPropertyId(selectedPropertyId);
+  }, [selectedPropertyId]);
   const [drawId, setDrawId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState(nextInvoiceNumber());
   const [invoiceDate, setInvoiceDate] = useState(todayIso());

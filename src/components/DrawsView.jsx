@@ -82,7 +82,7 @@ function SegmentToggle({ value, onChange, options }) {
   );
 }
 
-export default function DrawsView({ selectedId }) {
+export default function DrawsView({ selectedId, onGoToLjld }) {
   const { builds, addDraw, updateDrawStatus, updateProperty } = useJobs();
   const [selectedJob, setSelectedJob] = useState(selectedId || builds[0]?.id);
   const [selectedDraw, setSelectedDraw] = useState(null);
@@ -162,7 +162,11 @@ export default function DrawsView({ selectedId }) {
   };
 
   const handleDrawClick = (draw) => {
-    setSelectedDraw(selectedDraw?.id === draw.id ? null : draw);
+    const next = selectedDraw?.id === draw.id ? null : draw;
+    setSelectedDraw(next);
+    if (next && typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   const invoicesToShow = selectedDraw ? drawInvoices : allInvoices;
@@ -240,21 +244,66 @@ export default function DrawsView({ selectedId }) {
         </div>
       )}
 
-      {/* Build a Draw Package — invoice ingestion for current draw */}
+      {/* LJLD nudge — visible when the current draw has no LJLD aggregate */}
+      {(() => {
+        const jobDraws = job.draws || [];
+        const currentDraw = jobDraws[jobDraws.length - 1];
+        if (!currentDraw) return null;
+        const hasLjld = allInvoices.some(
+          (inv) =>
+            inv.draw_id === currentDraw.id &&
+            isInternalGC(inv.vendor)
+        );
+        if (hasLjld || !onGoToLjld) return null;
+        return (
+          <button
+            onClick={() => onGoToLjld(job.id)}
+            className="press w-full mb-5 flex items-center gap-3 rounded-xl px-4 py-3 bg-chassis shadow-recessed-sm text-left hover:shadow-card transition-all"
+          >
+            <LED color="amber" size={10} pulse />
+            <div className="flex-1">
+              <div className="text-[12px] font-semibold text-ink">
+                Build the LJLD invoice first
+              </div>
+              <div className="text-[10px] font-mono text-label">
+                Draw #{currentDraw.num} has no LJLD aggregate yet — finalize there so it rolls in.
+              </div>
+            </div>
+            <ArrowRight className="h-3.5 w-3.5 text-accent" strokeWidth={2.2} />
+          </button>
+        );
+      })()}
+
+      {/* Build a Draw Package — invoice ingestion for current draw (or selected historical) */}
       <section className="mb-10">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chassis shadow-recessed-sm">
-            <LED color="accent" size={8} pulse />
+            <LED color={selectedDraw ? "purple" : "accent"} size={8} pulse />
           </div>
-          <div>
-            <Stamp className="text-[11px]">Build a Draw Package</Stamp>
+          <div className="flex-1">
+            <Stamp className="text-[11px]">
+              {selectedDraw
+                ? `Editing Draw #${selectedDraw.num} · ${DRAW_STATUS[selectedDraw.status]?.label || selectedDraw.status}`
+                : "Build a Draw Package"}
+            </Stamp>
             <div className="text-[10px] font-mono text-label/70 mt-0.5">
-              Upload invoices · auto-extract · review · save to draw
+              {selectedDraw
+                ? "Update invoices on this draw · uploads append · save to commit"
+                : "Upload invoices · auto-extract · review · save to draw"}
             </div>
           </div>
-          <div className="flex-1 h-px bg-[rgba(74,85,104,0.08)]" />
+          {selectedDraw && (
+            <button
+              onClick={() => setSelectedDraw(null)}
+              className="press flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-chassis shadow-recessed-sm text-[9px] font-mono uppercase tracking-[0.08em] font-bold text-label hover:text-ink"
+            >
+              <XIcon className="h-2.5 w-2.5" />
+              Back to current
+            </button>
+          )}
+          <div className="h-px bg-[rgba(74,85,104,0.08)] w-10" />
         </div>
-        <InvoicesView jobId={job.id} />
+        <InvoicesView jobId={job.id} drawNum={selectedDraw?.num} />
       </section>
 
       {/* Draw History section header */}
