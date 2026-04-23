@@ -93,6 +93,7 @@ async function extractFile({ name, base64, mime, kind }, anthropicKey) {
   const data = await callClaude(anthropicKey, {
     model: "claude-sonnet-4-20250514",
     max_tokens: 4096,
+    temperature: 0,
     messages: [{ role: "user", content }],
   });
   const items = parseJsonArray(data.content[0].text);
@@ -126,6 +127,7 @@ async function reviewItems(items, anthropicKey) {
   const data = await callClaude(anthropicKey, {
     model: "claude-sonnet-4-20250514",
     max_tokens: 2048,
+    temperature: 0,
     system: REVIEW_PROMPT,
     messages: [
       {
