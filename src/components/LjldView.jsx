@@ -12,7 +12,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { fc, Mono } from "../utils/format";
-import { fileToBase64 } from "../utils/extraction";
+import { uploadForLjld } from "../utils/extraction";
 import { authFetch, supabase } from "../utils/supabase";
 import { useJobs } from "../context/JobsContext";
 import { Button } from "./ui/Button";
@@ -135,13 +135,10 @@ export default function LjldView() {
     setError(null);
     setSuccess(null);
     try {
-      const base64 = await fileToBase64(file);
-      const isZip =
-        file.name.toLowerCase().endsWith(".zip") ||
-        file.type.includes("zip");
+      const { body } = await uploadForLjld(file);
       const res = await authFetch("/api/ljld-extract", {
         method: "POST",
-        body: JSON.stringify(isZip ? { zip: base64 } : { pdf: base64 }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

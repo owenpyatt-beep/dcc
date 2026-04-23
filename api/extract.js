@@ -1,12 +1,18 @@
 // Server-side invoice extraction via Anthropic API
-// POST /api/extract  { pdf: "base64-encoded-pdf-data" }
-//                or  { zip: "base64-encoded-zip-containing-pdfs" }
+// POST /api/extract
+//   { pdf: "base64-encoded-pdf-data" }
+//   { zip: "base64-encoded-zip-containing-pdfs" }
+//   { storagePath: "path/in/invoice-uploads", kind: "pdf" | "zip" }
 //
 // Moves the Anthropic API call server-side so the API key
-// never touches the browser.
+// never touches the browser. The storagePath form is used for larger
+// uploads that would exceed Vercel's request body limit.
 
 import JSZip from "jszip";
 import { verifyAuth } from "./_auth.js";
+import { supabaseAdmin } from "./_supabase.js";
+
+const STORAGE_BUCKET = "invoice-uploads";
 
 const EXTRACTION_PROMPT = `You are a construction draw invoice extraction system for Debrecht Properties. Extract every invoice from this PDF with extreme precision.
 
@@ -102,9 +108,11 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Authentication required" });
   }
 
-  const { pdf, zip } = req.body;
-  if (!pdf && !zip) {
-    return res.status(400).json({ error: "pdf or zip (base64) is required" });
+  const { pdf, zip, storagePath, kind } = req.body;
+  if (!pdf && !zip && !storagePath) {
+    return res
+      .status(400)
+      .json({ error: "pdf, zip, or storagePath is required" });
   }
 
   const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
@@ -116,9 +124,28 @@ export default async function handler(req, res) {
     let allInvoices = [];
     const sourceFiles = [];
 
-    if (zip) {
-      const buf = Buffer.from(zip, "base64");
-      const archive = await JSZip.loadAsync(buf);
+    // Resolve the zip/pdf buffer from storage if a path was provided
+    let zipBuffer = null;
+    let pdfBase64 = null;
+    if (storagePath) {
+      const { data, error } = await supabaseAdmin.storage
+        .from(STORAGE_BUCKET)
+        .download(storagePath);
+      if (error) throw new Error(`Storage download failed: ${error.message}`);
+      const buf = Buffer.from(await data.arrayBuffer());
+      if (kind === "zip" || storagePath.toLowerCase().endsWith(".zip")) {
+        zipBuffer = buf;
+      } else {
+        pdfBase64 = buf.toString("base64");
+      }
+    } else if (zip) {
+      zipBuffer = Buffer.from(zip, "base64");
+    } else {
+      pdfBase64 = pdf;
+    }
+
+    if (zipBuffer) {
+      const archive = await JSZip.loadAsync(zipBuffer);
       const pdfEntries = [];
       archive.forEach((relPath, entry) => {
         if (entry.dir) return;
@@ -158,10 +185,18 @@ export default async function handler(req, res) {
       allInvoices = results.flat();
       for (const e of pdfEntries) sourceFiles.push(e.name);
     } else {
-      allInvoices = await extractPdf(pdf, ANTHROPIC_KEY);
+      allInvoices = await extractPdf(pdfBase64, ANTHROPIC_KEY);
     }
 
     const invoices = allInvoices.map((inv, i) => ({ id: i, ...inv }));
+
+    // Best-effort cleanup of the uploaded blob (if any)
+    if (storagePath) {
+      supabaseAdmin.storage
+        .from(STORAGE_BUCKET)
+        .remove([storagePath])
+        .catch((e) => console.warn("Storage cleanup failed:", e?.message));
+    }
 
     return res.status(200).json({
       ok: true,

@@ -3,11 +3,15 @@
 // returns a review pass where Claude flags things Jenny should verify.
 //
 // POST /api/ljld-extract
-//   { zip: base64 }   — multi-file ZIP (preferred)
+//   { zip: base64 }   — multi-file ZIP (small)
 //   { pdf: base64 }   — single document fallback
+//   { storagePath, kind } — Supabase Storage path for larger uploads
 
 import JSZip from "jszip";
 import { verifyAuth } from "./_auth.js";
+import { supabaseAdmin } from "./_supabase.js";
+
+const STORAGE_BUCKET = "invoice-uploads";
 
 const EXTRACTION_PROMPT = `You are extracting a single expense document for LJLD LLC, Debrecht's internal GC arm.
 
@@ -139,9 +143,11 @@ export default async function handler(req, res) {
   const user = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Authentication required" });
 
-  const { pdf, zip } = req.body;
-  if (!pdf && !zip) {
-    return res.status(400).json({ error: "pdf or zip (base64) is required" });
+  const { pdf, zip, storagePath, kind } = req.body;
+  if (!pdf && !zip && !storagePath) {
+    return res
+      .status(400)
+      .json({ error: "pdf, zip, or storagePath is required" });
   }
 
   const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
@@ -151,10 +157,37 @@ export default async function handler(req, res) {
 
   try {
     const files = [];
+    let zipBuffer = null;
+    let singleFileBase64 = null;
+    let singleFileName = "upload.pdf";
+    let singleFileKind = "document";
+    let singleFileMime = "application/pdf";
 
-    if (zip) {
-      const buf = Buffer.from(zip, "base64");
-      const archive = await JSZip.loadAsync(buf);
+    if (storagePath) {
+      const { data, error } = await supabaseAdmin.storage
+        .from(STORAGE_BUCKET)
+        .download(storagePath);
+      if (error) throw new Error(`Storage download failed: ${error.message}`);
+      const buf = Buffer.from(await data.arrayBuffer());
+      const lower = storagePath.toLowerCase();
+      if (kind === "zip" || lower.endsWith(".zip")) {
+        zipBuffer = buf;
+      } else {
+        const mt = mediaTypeFor(lower);
+        if (!mt) throw new Error("Unsupported file type in storage upload");
+        singleFileBase64 = buf.toString("base64");
+        singleFileName = storagePath.split("/").pop() || "upload";
+        singleFileKind = mt.kind;
+        singleFileMime = mt.mime;
+      }
+    } else if (zip) {
+      zipBuffer = Buffer.from(zip, "base64");
+    } else {
+      singleFileBase64 = pdf;
+    }
+
+    if (zipBuffer) {
+      const archive = await JSZip.loadAsync(zipBuffer);
       const entries = [];
       archive.forEach((relPath, entry) => {
         if (entry.dir) return;
@@ -175,10 +208,10 @@ export default async function handler(req, res) {
       }
     } else {
       files.push({
-        name: "upload.pdf",
-        base64: pdf,
-        mime: "application/pdf",
-        kind: "document",
+        name: singleFileName,
+        base64: singleFileBase64,
+        mime: singleFileMime,
+        kind: singleFileKind,
       });
     }
 
@@ -216,6 +249,14 @@ export default async function handler(req, res) {
           item_id: it.id,
           question: `${it.vendor || it.description || "Item"}: please verify (${it.flags.join(", ")})`,
         }));
+    }
+
+    // Best-effort cleanup of the uploaded blob
+    if (storagePath) {
+      supabaseAdmin.storage
+        .from(STORAGE_BUCKET)
+        .remove([storagePath])
+        .catch((e) => console.warn("Storage cleanup failed:", e?.message));
     }
 
     return res.status(200).json({

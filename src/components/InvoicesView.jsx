@@ -10,7 +10,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { fc, pct, Mono, Badge, ChartTip, COLORS } from "../utils/format";
-import { extractInvoices, fileToBase64 } from "../utils/extraction";
+import { extractInvoices } from "../utils/extraction";
 import { mapTrade, getTradeCategories } from "../utils/tradeMap";
 import { useJobs } from "../context/JobsContext";
 import { authFetch } from "../utils/supabase";
@@ -110,12 +110,7 @@ export default function InvoicesView({ jobId }) {
     setExtracted(null);
     setSaved(false);
     try {
-      const base64 = await fileToBase64(file);
-      const isZip =
-        file.name.toLowerCase().endsWith(".zip") ||
-        file.type === "application/zip" ||
-        file.type === "application/x-zip-compressed";
-      const { invoices } = await extractInvoices(base64, isZip ? "zip" : "pdf");
+      const { invoices } = await extractInvoices(file);
       const normalized = invoices.map((inv) => ({
         ...inv,
         tradeCategory: mapTrade(inv.tradeCategory),
