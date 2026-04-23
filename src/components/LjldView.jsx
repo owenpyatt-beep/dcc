@@ -293,8 +293,17 @@ export default function LjldView({ selectedPropertyId }) {
       });
 
       if (!genRes.ok) {
-        const err = await genRes.json().catch(() => ({}));
-        throw new Error(err.error || `Generate failed (${genRes.status})`);
+        const rawText = await genRes.text().catch(() => "");
+        let parsed = null;
+        try {
+          parsed = JSON.parse(rawText);
+        } catch (_) {}
+        const detail =
+          parsed?.error ||
+          (rawText && rawText.length < 400 ? rawText : "") ||
+          `status ${genRes.status}`;
+        console.error("LJLD generate raw response:", rawText);
+        throw new Error(`Generate failed: ${detail}`);
       }
 
       const blob = await genRes.blob();
