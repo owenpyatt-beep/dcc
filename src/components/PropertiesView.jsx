@@ -1,6 +1,12 @@
-import React, { useState } from "react";
-import { RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import {
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle2,
+  ArrowRight,
+} from "lucide-react";
 import { fc, pct, Mono, KpiCard, ProgressBar } from "../utils/format";
+import { DRAW_STATUS } from "../data/jobs";
 import { useJobs } from "../context/JobsContext";
 import { syncProperties } from "../utils/appfolio";
 import { Button } from "./ui/Button";
@@ -39,7 +45,7 @@ function PillTab({ active, onClick, children }) {
   );
 }
 
-function Panel({ title, children, className = "" }) {
+function Panel({ title, children, action, className = "" }) {
   return (
     <div
       className={
@@ -49,65 +55,235 @@ function Panel({ title, children, className = "" }) {
     >
       <div className="flex items-center justify-between mb-5">
         <Stamp>{title}</Stamp>
+        {action}
       </div>
       {children}
     </div>
   );
 }
 
-export default function PropertiesView({ selectedId: initialId }) {
-  const { managed, updateProperty, syncAppfolio } = useJobs();
-  const [selectedId, setSelectedId] = useState(initialId || managed[0]?.id);
-  const prop = managed.find((p) => p.id === selectedId) || managed[0];
+function BuildDetail({ prop, onGoToDraws, updateProperty }) {
+  const draws = prop.draws || [];
+  const currentDraw = draws[draws.length - 1];
+  const statusLabel = currentDraw
+    ? DRAW_STATUS[currentDraw.status]?.label || currentDraw.status
+    : null;
+  const ledColor = currentDraw?.status === "funded" ? "green" : "purple";
 
-  React.useEffect(() => {
-    if (initialId) setSelectedId(initialId);
-  }, [initialId]);
+  const set = (field, value) => updateProperty(prop.id, { [field]: value });
 
-  const [syncing, setSyncing] = useState(false);
-  const [syncError, setSyncError] = useState(null);
-  const [syncSuccess, setSyncSuccess] = useState(null);
+  const fundedTotal = draws
+    .filter((d) => d.status === "funded")
+    .reduce((s, d) => s + (d.amount || 0), 0);
+  const submittedTotal = draws
+    .filter((d) => d.status === "submitted")
+    .reduce((s, d) => s + (d.amount || 0), 0);
 
-  const handleSync = async () => {
-    setSyncing(true);
-    setSyncError(null);
-    setSyncSuccess(null);
-    try {
-      const result = await syncProperties();
-      if (result.ok && result.properties) {
-        syncAppfolio(result.properties);
-        setSyncSuccess(
-          `Synced ${result.properties.length} properties from Appfolio`
-        );
-        setTimeout(() => setSyncSuccess(null), 4000);
-      } else {
-        setSyncError(result.error || "Sync returned no data");
-      }
-    } catch (err) {
-      setSyncError(err.message);
-    } finally {
-      setSyncing(false);
-    }
-  };
+  const completion = prop.completion || 0;
+  const drawnPct =
+    prop.totalProjectCost > 0
+      ? Math.round((prop.drawnToDate / prop.totalProjectCost) * 100)
+      : 0;
+  const equityPct =
+    prop.equityRequired > 0
+      ? Math.round((prop.equityIn / prop.equityRequired) * 100)
+      : 0;
 
-  if (!prop) {
-    return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <div className="text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-chassis shadow-recessed-sm">
-            <LED color="amber" size={8} pulse />
-            <Stamp>No managed properties yet</Stamp>
-          </div>
-          <div className="mt-3 text-sm text-label">
-            Add one from the sidebar.
-          </div>
-        </div>
+  return (
+    <>
+      <div className="grid-4 mb-6">
+        <KpiCard
+          label="Project Cost"
+          value={fc(prop.totalProjectCost || 0)}
+          sub={`Loan ${fc(prop.loanAmount || 0)}`}
+          accent="#ff4757"
+        />
+        <KpiCard
+          label="Drawn To Date"
+          value={fc(prop.drawnToDate || 0)}
+          sub={`${drawnPct}% of project`}
+          accent="#3b82f6"
+        />
+        <KpiCard
+          label="Completion"
+          value={`${completion}%`}
+          sub={currentDraw ? `${statusLabel} · Draw #${currentDraw.num}` : "No draws"}
+          accent={completion >= 90 ? "#22c55e" : completion >= 50 ? "#f59e0b" : "#ff4757"}
+        />
+        <KpiCard
+          label="Equity In"
+          value={fc(prop.equityIn || 0)}
+          sub={
+            prop.equityRequired > 0
+              ? `${equityPct}% of ${fc(prop.equityRequired)} required`
+              : "Not set"
+          }
+          accent="#8b5cf6"
+        />
       </div>
-    );
-  }
 
-  const occPct =
-    prop.totalUnits > 0 ? pct(prop.occupiedUnits, prop.totalUnits) : 0;
+      <div className="grid-2 mb-6">
+        <Panel
+          title="Build Progress"
+          action={
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onGoToDraws(prop.id)}
+              iconRight={<ArrowRight className="h-3 w-3" />}
+            >
+              Draws
+            </Button>
+          }
+        >
+          <div className="mb-5">
+            <div className="flex justify-between mb-2">
+              <Stamp className="text-[9px]">Drawn vs Project</Stamp>
+              <Mono className="text-[11px] text-label">
+                {fc(prop.drawnToDate || 0)} / {fc(prop.totalProjectCost || 0)}
+              </Mono>
+            </div>
+            <ProgressBar
+              value={prop.drawnToDate || 0}
+              max={prop.totalProjectCost || 1}
+              color="#3b82f6"
+              height={6}
+            />
+          </div>
+
+          <div className="mb-5">
+            <div className="flex justify-between mb-2">
+              <Stamp className="text-[9px]">Completion</Stamp>
+              <Mono className="text-[11px] text-label">{completion}%</Mono>
+            </div>
+            <ProgressBar
+              value={completion}
+              max={100}
+              color={completion >= 90 ? "#22c55e" : "#ff4757"}
+              height={6}
+            />
+          </div>
+
+          <div className="pt-5 border-t border-[rgba(74,85,104,0.1)]">
+            <Stamp className="text-[9px] block mb-3">Update Values</Stamp>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Drawn ($)</Label>
+                <NumInput
+                  value={prop.drawnToDate || 0}
+                  onChange={(v) => set("drawnToDate", v)}
+                  step="0.01"
+                />
+              </div>
+              <div>
+                <Label>Equity In ($)</Label>
+                <NumInput
+                  value={prop.equityIn || 0}
+                  onChange={(v) => set("equityIn", v)}
+                  step="0.01"
+                />
+              </div>
+              <div>
+                <Label>% Complete</Label>
+                <NumInput
+                  value={completion}
+                  onChange={(v) => set("completion", v)}
+                  step="1"
+                />
+              </div>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel title="Draws Summary">
+          <div className="mb-4 rounded-xl bg-chassis p-4 shadow-recessed-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="flex items-center gap-2">
+                <LED color={ledColor} size={8} pulse={!!currentDraw} />
+                <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-label">
+                  Current Draw
+                </span>
+              </span>
+              <Mono className="text-[13px] font-bold text-ink">
+                {currentDraw
+                  ? `#${currentDraw.num} · ${fc(currentDraw.amount || 0)}`
+                  : "—"}
+              </Mono>
+            </div>
+            {currentDraw && (
+              <Mono className="block text-[10px] text-label">
+                {statusLabel}
+                {currentDraw.submitted && ` · submitted ${currentDraw.submitted}`}
+                {currentDraw.funded && ` · funded ${currentDraw.funded}`}
+              </Mono>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-chassis p-4 shadow-recessed-sm">
+              <Stamp className="text-[9px]">Funded Total</Stamp>
+              <Mono className="mt-1.5 block text-xl font-bold text-[#15803d]">
+                {fc(fundedTotal)}
+              </Mono>
+              <div className="text-[10px] font-mono text-label mt-0.5">
+                {draws.filter((d) => d.status === "funded").length} funded
+              </div>
+            </div>
+            <div className="rounded-xl bg-chassis p-4 shadow-recessed-sm">
+              <Stamp className="text-[9px]">Pending</Stamp>
+              <Mono className="mt-1.5 block text-xl font-bold text-[#8b5cf6]">
+                {fc(submittedTotal)}
+              </Mono>
+              <div className="text-[10px] font-mono text-label mt-0.5">
+                {draws.filter((d) => d.status === "submitted").length} submitted
+              </div>
+            </div>
+          </div>
+
+          {(prop.foreman || prop.pm || prop.startDate || prop.estCompletion) && (
+            <div className="mt-4 pt-4 border-t border-[rgba(74,85,104,0.1)] grid grid-cols-2 gap-3">
+              {prop.pm && (
+                <div>
+                  <Stamp className="text-[9px]">PM</Stamp>
+                  <div className="text-[12px] font-semibold text-ink mt-1">
+                    {prop.pm}
+                  </div>
+                </div>
+              )}
+              {prop.foreman && (
+                <div>
+                  <Stamp className="text-[9px]">Foreman</Stamp>
+                  <div className="text-[12px] font-semibold text-ink mt-1">
+                    {prop.foreman}
+                  </div>
+                </div>
+              )}
+              {prop.startDate && (
+                <div>
+                  <Stamp className="text-[9px]">Start</Stamp>
+                  <div className="text-[12px] font-mono text-ink mt-1">
+                    {prop.startDate}
+                  </div>
+                </div>
+              )}
+              {prop.estCompletion && (
+                <div>
+                  <Stamp className="text-[9px]">Est. Completion</Stamp>
+                  <div className="text-[12px] font-mono text-ink mt-1">
+                    {prop.estCompletion}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Panel>
+      </div>
+    </>
+  );
+}
+
+function ManagedDetail({ prop, updateProperty }) {
+  const occPct = prop.totalUnits > 0 ? pct(prop.occupiedUnits, prop.totalUnits) : 0;
   const leasePct =
     prop.totalUnits > 0 ? pct(prop.leasedUnits, prop.totalUnits) : 0;
   const totalLate = prop.delinquent30 + prop.delinquent60;
@@ -118,104 +294,30 @@ export default function PropertiesView({ selectedId: initialId }) {
   const set = (field, value) => updateProperty(prop.id, { [field]: value });
 
   return (
-    <div className="max-w-[1400px] mx-auto">
-      {/* Property selector tabs */}
-      <div className="inline-flex items-center gap-1 mb-6 p-1 rounded-xl bg-chassis shadow-recessed">
-        {managed.map((p) => (
-          <PillTab
-            key={p.id}
-            active={selectedId === p.id}
-            onClick={() => setSelectedId(p.id)}
-          >
-            {p.shortName}
-          </PillTab>
-        ))}
-      </div>
-
-      {/* Header + sync action */}
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
-        <div>
-          <div className="text-2xl md:text-[26px] font-bold text-ink emboss tracking-tight">
-            {prop.name}
-          </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] font-mono text-label">
-            <span>{prop.address}</span>
-            <span className="text-label/40">·</span>
-            <span>{prop.type}</span>
-            <span className="text-label/40">·</span>
-            <span>{prop.totalUnits} units</span>
-            {prop.lastSynced && (
-              <>
-                <span className="text-label/40">·</span>
-                <span className="text-label/70">
-                  synced {new Date(prop.lastSynced).toLocaleString()}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-        <Button
-          variant="secondary"
-          size="md"
-          onClick={handleSync}
-          disabled={syncing}
-          iconLeft={
-            <RefreshCw
-              className={"h-3.5 w-3.5 " + (syncing ? "animate-spin" : "")}
-              strokeWidth={2}
-            />
-          }
-        >
-          {syncing ? "Syncing..." : "Sync Appfolio"}
-        </Button>
-      </div>
-
-      {syncError && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl px-4 py-3 bg-chassis shadow-recessed-sm">
-          <AlertTriangle className="h-4 w-4 text-[#ef4444]" />
-          <span className="font-mono text-xs text-[#b91c1c]">{syncError}</span>
-        </div>
-      )}
-      {syncSuccess && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl px-4 py-3 bg-chassis shadow-recessed-sm">
-          <CheckCircle2 className="h-4 w-4 text-[#22c55e]" />
-          <span className="font-mono text-xs text-[#15803d]">
-            {syncSuccess}
-          </span>
-        </div>
-      )}
-
+    <>
       <div className="grid-4 mb-6">
         <KpiCard
           label="Occupancy"
           value={`${occPct}%`}
           sub={`${prop.occupiedUnits} of ${prop.totalUnits} units`}
-          accent={
-            occPct >= 90 ? "#22c55e" : occPct >= 75 ? "#f59e0b" : "#ef4444"
-          }
+          accent={occPct >= 90 ? "#22c55e" : occPct >= 75 ? "#f59e0b" : "#ef4444"}
         />
         <KpiCard
           label="Lease Rate"
           value={`${leasePct}%`}
-          sub={`${prop.leasedUnits} units under lease`}
+          sub={`${prop.leasedUnits} under lease`}
           accent="#3b82f6"
         />
         <KpiCard
           label="Late Payments"
           value={totalLate > 0 ? `${totalLate} units` : "0"}
-          sub={
-            totalLateAmt > 0 ? fc(totalLateAmt) + " outstanding" : "All current"
-          }
+          sub={totalLateAmt > 0 ? fc(totalLateAmt) + " outstanding" : "All current"}
           accent={totalLate > 0 ? "#ef4444" : "#22c55e"}
         />
         <KpiCard
           label="Monthly Income"
           value={prop.monthlyIncome > 0 ? fc(prop.monthlyIncome) : "$0"}
-          sub={
-            prop.monthlyIncome > 0
-              ? `${collectionRate}% collected`
-              : "Not yet entered"
-          }
+          sub={prop.monthlyIncome > 0 ? `${collectionRate}% collected` : "Not yet entered"}
           accent="#ff4757"
         />
       </div>
@@ -232,9 +334,7 @@ export default function PropertiesView({ selectedId: initialId }) {
             <ProgressBar
               value={prop.occupiedUnits}
               max={prop.totalUnits || 1}
-              color={
-                occPct >= 90 ? "#22c55e" : occPct >= 75 ? "#f59e0b" : "#ef4444"
-              }
+              color={occPct >= 90 ? "#22c55e" : occPct >= 75 ? "#f59e0b" : "#ef4444"}
               height={6}
             />
           </div>
@@ -366,73 +466,13 @@ export default function PropertiesView({ selectedId: initialId }) {
         </Panel>
       </div>
 
-      {(prop.vacantRented > 0 ||
-        prop.vacantUnrented > 0 ||
-        prop.noticeRented > 0 ||
-        prop.noticeUnrented > 0) && (
-        <Panel title="Vacancy Pipeline" className="mb-6">
-          <div className="grid-4">
-            {[
-              {
-                label: "Vacant - Rented",
-                value: prop.vacantRented || 0,
-                color: "green",
-                sub: "Lease signed, pending move-in",
-              },
-              {
-                label: "Vacant - Unrented",
-                value: prop.vacantUnrented || 0,
-                color: "red",
-                sub: "Empty, no lease",
-              },
-              {
-                label: "Notice - Rented",
-                value: prop.noticeRented || 0,
-                color: "blue",
-                sub: "Leaving, replacement found",
-              },
-              {
-                label: "Notice - Unrented",
-                value: prop.noticeUnrented || 0,
-                color: "amber",
-                sub: "Leaving, no replacement",
-              },
-            ].map((v) => (
-              <div
-                key={v.label}
-                className="rounded-xl bg-chassis p-4 shadow-recessed-sm relative"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-label">
-                    {v.label}
-                  </span>
-                  {v.value > 0 && <LED color={v.color} size={7} pulse />}
-                </div>
-                <Mono
-                  className={
-                    "text-3xl font-bold " +
-                    (v.value > 0 ? "text-ink emboss" : "text-label/60")
-                  }
-                >
-                  {v.value}
-                </Mono>
-                <div className="mt-1 text-[10px] font-mono text-label">
-                  {v.sub}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      )}
-
       <div className="grid-2">
         <Panel title="This Month">
           <div className="grid grid-cols-2 gap-5">
             {[
               {
                 label: "Rental Income",
-                value:
-                  prop.monthRentalIncome || prop.collectedIncome || 0,
+                value: prop.monthRentalIncome || prop.collectedIncome || 0,
                 color: "text-accent",
               },
               {
@@ -453,44 +493,12 @@ export default function PropertiesView({ selectedId: initialId }) {
             ].map((s) => (
               <div key={s.label}>
                 <Stamp className="text-[9px]">{s.label}</Stamp>
-                <Mono
-                  className={"mt-1.5 block text-xl font-bold " + s.color}
-                >
+                <Mono className={"mt-1.5 block text-xl font-bold " + s.color}>
                   {fc(s.value)}
                 </Mono>
               </div>
             ))}
           </div>
-          {prop.monthlyIncome > 0 && prop.collectedIncome > 0 && (
-            <div className="mt-5 pt-4 border-t border-[rgba(74,85,104,0.1)] flex items-center justify-between">
-              <Stamp>Collection Rate</Stamp>
-              <div className="flex items-center gap-2">
-                <LED
-                  color={
-                    collectionRate >= 95
-                      ? "green"
-                      : collectionRate >= 85
-                      ? "amber"
-                      : "red"
-                  }
-                  size={8}
-                  pulse
-                />
-                <Mono
-                  className={
-                    "text-2xl font-bold " +
-                    (collectionRate >= 95
-                      ? "text-[#15803d]"
-                      : collectionRate >= 85
-                      ? "text-[#b45309]"
-                      : "text-[#b91c1c]")
-                  }
-                >
-                  {collectionRate}%
-                </Mono>
-              </div>
-            </div>
-          )}
         </Panel>
 
         <Panel title="Year to Date">
@@ -519,9 +527,7 @@ export default function PropertiesView({ selectedId: initialId }) {
             ].map((s) => (
               <div key={s.label}>
                 <Stamp className="text-[9px]">{s.label}</Stamp>
-                <Mono
-                  className={"mt-1.5 block text-xl font-bold " + s.color}
-                >
+                <Mono className={"mt-1.5 block text-xl font-bold " + s.color}>
                   {fc(s.value)}
                 </Mono>
               </div>
@@ -529,6 +535,144 @@ export default function PropertiesView({ selectedId: initialId }) {
           </div>
         </Panel>
       </div>
+    </>
+  );
+}
+
+export default function PropertiesView({ selectedId: initialId, onGoToDraws }) {
+  const { properties, updateProperty, syncAppfolio } = useJobs();
+  const [selectedId, setSelectedId] = useState(initialId || properties[0]?.id);
+  const prop = properties.find((p) => p.id === selectedId) || properties[0];
+
+  useEffect(() => {
+    if (initialId) setSelectedId(initialId);
+  }, [initialId]);
+
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(null);
+  const [syncSuccess, setSyncSuccess] = useState(null);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncError(null);
+    setSyncSuccess(null);
+    try {
+      const result = await syncProperties();
+      if (result.ok && result.properties) {
+        syncAppfolio(result.properties);
+        setSyncSuccess(
+          `Synced ${result.properties.length} properties from Appfolio`
+        );
+        setTimeout(() => setSyncSuccess(null), 4000);
+      } else {
+        setSyncError(result.error || "Sync returned no data");
+      }
+    } catch (err) {
+      setSyncError(err.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  if (!prop) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-chassis shadow-recessed-sm">
+            <LED color="amber" size={8} pulse />
+            <Stamp>No properties yet</Stamp>
+          </div>
+          <div className="mt-3 text-sm text-label">
+            Add one from the sidebar.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const isBuild = prop.category === "build";
+
+  const headerMeta = [
+    prop.address,
+    prop.type,
+    isBuild
+      ? `${prop.completion || 0}% complete`
+      : prop.totalUnits
+      ? `${prop.totalUnits} units`
+      : null,
+    !isBuild && prop.lastSynced
+      ? `synced ${new Date(prop.lastSynced).toLocaleString()}`
+      : null,
+  ].filter(Boolean);
+
+  return (
+    <div className="max-w-[1400px] mx-auto">
+      <div className="inline-flex items-center gap-1 mb-6 p-1 rounded-xl bg-chassis shadow-recessed overflow-x-auto max-w-full">
+        {properties.map((p) => (
+          <PillTab
+            key={p.id}
+            active={selectedId === p.id}
+            onClick={() => setSelectedId(p.id)}
+          >
+            {p.shortName || p.name}
+          </PillTab>
+        ))}
+      </div>
+
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
+        <div>
+          <div className="text-2xl md:text-[26px] font-bold text-ink emboss tracking-tight">
+            {prop.name}
+          </div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] font-mono text-label">
+            {headerMeta.map((m, i) => (
+              <React.Fragment key={i}>
+                {i > 0 && <span className="text-label/40">·</span>}
+                <span>{m}</span>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+        {!isBuild && (
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={handleSync}
+            disabled={syncing}
+            iconLeft={
+              <RefreshCw
+                className={"h-3.5 w-3.5 " + (syncing ? "animate-spin" : "")}
+                strokeWidth={2}
+              />
+            }
+          >
+            {syncing ? "Syncing..." : "Sync Appfolio"}
+          </Button>
+        )}
+      </div>
+
+      {syncError && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl px-4 py-3 bg-chassis shadow-recessed-sm">
+          <AlertTriangle className="h-4 w-4 text-[#ef4444]" />
+          <span className="font-mono text-xs text-[#b91c1c]">{syncError}</span>
+        </div>
+      )}
+      {syncSuccess && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl px-4 py-3 bg-chassis shadow-recessed-sm">
+          <CheckCircle2 className="h-4 w-4 text-[#22c55e]" />
+          <span className="font-mono text-xs text-[#15803d]">{syncSuccess}</span>
+        </div>
+      )}
+
+      {isBuild ? (
+        <BuildDetail
+          prop={prop}
+          onGoToDraws={onGoToDraws}
+          updateProperty={updateProperty}
+        />
+      ) : (
+        <ManagedDetail prop={prop} updateProperty={updateProperty} />
+      )}
     </div>
   );
 }

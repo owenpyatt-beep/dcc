@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import {
-  LayoutGrid,
   Building2,
   Layers,
-  Receipt,
+  Database,
+  FileText,
   Plus,
   LogOut,
   Menu,
@@ -13,10 +13,10 @@ import { DRAW_STATUS } from "./data/jobs";
 import { pct } from "./utils/format";
 import { useJobs } from "./context/JobsContext";
 import { useAuth } from "./context/AuthContext";
-import PortfolioView from "./components/PortfolioView";
 import PropertiesView from "./components/PropertiesView";
 import DrawsView from "./components/DrawsView";
-import InvoicesView from "./components/InvoicesView";
+import InvoiceDatabaseView from "./components/InvoiceDatabaseView";
+import LjldView from "./components/LjldView";
 import AddJobModal from "./components/AddJobModal";
 import LoginPage from "./components/LoginPage";
 import PrivacyPage from "./components/PrivacyPage";
@@ -36,17 +36,17 @@ function useIsMobile(breakpoint = 768) {
 }
 
 const NAV = [
-  { id: "portfolio", label: "Portfolio", Icon: LayoutGrid },
   { id: "properties", label: "Properties", Icon: Building2 },
   { id: "draws", label: "Draws", Icon: Layers },
-  { id: "invoices", label: "Invoices", Icon: Receipt },
+  { id: "invoice-db", label: "Invoice Database", Icon: Database },
+  { id: "ljld", label: "LJLD LLC", Icon: FileText },
 ];
 
 const TITLES = {
-  portfolio: "Portfolio",
   properties: "Properties",
   draws: "Draws",
-  invoices: "Invoices",
+  "invoice-db": "Invoice Database",
+  ljld: "LJLD LLC",
 };
 
 function BootScreen({ message = "Loading...", error = null }) {
@@ -155,10 +155,10 @@ function SectionHeader({ children, action }) {
 export default function App() {
   const path = window.location.pathname;
   const { user, loading: authLoading, signOut } = useAuth();
-  const { properties, builds, managed, addProperty, loading, error: dataError } = useJobs();
-  const [view, setView] = useState("portfolio");
+  const { properties, builds, addProperty, loading, error: dataError } = useJobs();
+  const [view, setView] = useState("properties");
+  const [selectedPropertyId, setSelectedPropertyId] = useState(null);
   const [selectedBuildId, setSelectedBuildId] = useState(null);
-  const [selectedManagedId, setSelectedManagedId] = useState(null);
   const [showAddJob, setShowAddJob] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -172,13 +172,13 @@ export default function App() {
   if (loading) return <BootScreen message="Loading data..." />;
   if (dataError) return <BootScreen error={dataError} />;
 
-  const handleSelectManaged = (id) => {
-    setSelectedManagedId(id);
+  const handleSelectProperty = (id) => {
+    setSelectedPropertyId(id);
     setView("properties");
     setSidebarOpen(false);
   };
 
-  const handleSelectBuild = (id) => {
+  const handleGoToDraws = (id) => {
     setSelectedBuildId(id);
     setView("draws");
     setSidebarOpen(false);
@@ -207,36 +207,6 @@ export default function App() {
           ))}
         </div>
 
-        {managed.length > 0 && (
-          <>
-            <SectionHeader>Managed</SectionHeader>
-            <div className="space-y-1">
-              {managed.map((p) => {
-                const occ = p.totalUnits > 0 ? pct(p.occupiedUnits, p.totalUnits) : 0;
-                const ledColor =
-                  occ >= 90 ? "green" : occ >= 75 ? "amber" : "red";
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => handleSelectManaged(p.id)}
-                    className="press group w-full rounded-xl px-3 py-2.5 text-left hover:shadow-recessed-sm transition-all"
-                  >
-                    <div className="text-[12px] font-semibold text-ink">
-                      {p.shortName}
-                    </div>
-                    <div className="mt-1 flex items-center gap-1.5">
-                      <LED color={ledColor} size={6} pulse={false} />
-                      <span className="text-[10px] font-mono text-label">
-                        {occ}% occupied · {p.occupiedUnits}/{p.totalUnits}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-
         <SectionHeader
           action={
             <button
@@ -251,41 +221,49 @@ export default function App() {
             </button>
           }
         >
-          Active Builds
+          Properties
         </SectionHeader>
         <div className="space-y-1">
-          {builds.map((j) => {
-            const jDraws = j.draws || [];
-            const currentDraw = jDraws[jDraws.length - 1];
-            const statusKey = currentDraw?.status;
-            const ledColor = statusKey === "funded" ? "green" : "purple";
+          {properties.map((p) => {
+            const isBuild = p.category === "build";
+            let ledColor = "amber";
+            let meta = "";
+            if (isBuild) {
+              const jDraws = p.draws || [];
+              const currentDraw = jDraws[jDraws.length - 1];
+              const statusKey = currentDraw?.status;
+              ledColor = statusKey === "funded" ? "green" : "purple";
+              meta = currentDraw
+                ? `Draw #${currentDraw.num} · ${DRAW_STATUS[statusKey]?.label || ""}`
+                : "No draws";
+            } else {
+              const occ = p.totalUnits > 0 ? pct(p.occupiedUnits, p.totalUnits) : 0;
+              ledColor = occ >= 90 ? "green" : occ >= 75 ? "amber" : "red";
+              meta = p.totalUnits > 0
+                ? `${occ}% · ${p.occupiedUnits}/${p.totalUnits}`
+                : "No units set";
+            }
             return (
               <button
-                key={j.id}
-                onClick={() => handleSelectBuild(j.id)}
+                key={p.id}
+                onClick={() => handleSelectProperty(p.id)}
                 className="press w-full rounded-xl px-3 py-2.5 text-left hover:shadow-recessed-sm transition-all"
               >
                 <div className="text-[12px] font-semibold text-ink">
-                  {j.shortName}
+                  {p.shortName || p.name}
                 </div>
-                {currentDraw ? (
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <LED color={ledColor} size={6} pulse={false} />
-                    <span className="text-[10px] font-mono text-label">
-                      Draw #{currentDraw.num} · {DRAW_STATUS[statusKey]?.label}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="mt-1 text-[10px] font-mono text-label">
-                    No draws
-                  </div>
-                )}
+                <div className="mt-1 flex items-center gap-1.5">
+                  <LED color={ledColor} size={6} pulse={false} />
+                  <span className="text-[10px] font-mono text-label truncate">
+                    {meta}
+                  </span>
+                </div>
               </button>
             );
           })}
-          {builds.length === 0 && (
+          {properties.length === 0 && (
             <div className="px-3 py-2 text-[11px] font-mono text-label/80">
-              No active builds
+              No properties yet
             </div>
           )}
         </div>
@@ -410,17 +388,15 @@ export default function App() {
             (isMobile ? "p-4" : "px-8 py-8")
           }
         >
-          {view === "portfolio" && (
-            <PortfolioView
-              onSelectManaged={handleSelectManaged}
-              onSelectBuild={handleSelectBuild}
+          {view === "properties" && (
+            <PropertiesView
+              selectedId={selectedPropertyId}
+              onGoToDraws={handleGoToDraws}
             />
           )}
-          {view === "properties" && (
-            <PropertiesView selectedId={selectedManagedId} />
-          )}
           {view === "draws" && <DrawsView selectedId={selectedBuildId} />}
-          {view === "invoices" && <InvoicesView />}
+          {view === "invoice-db" && <InvoiceDatabaseView />}
+          {view === "ljld" && <LjldView />}
         </main>
       </div>
 

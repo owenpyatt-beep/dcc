@@ -76,10 +76,15 @@ function EmptyState({ children }) {
   );
 }
 
-export default function InvoicesView() {
+export default function InvoicesView({ jobId }) {
   const { builds, commitExtraction } = useJobs();
-  const [selectedJob, setSelectedJob] = useState(builds[0]?.id);
-  const job = builds.find((j) => j.id === selectedJob) || builds[0];
+  const [selectedJob, setSelectedJob] = useState(jobId || builds[0]?.id);
+  const effectiveJobId = jobId || selectedJob;
+  const job = builds.find((j) => j.id === effectiveJobId) || builds[0];
+
+  React.useEffect(() => {
+    if (jobId) setSelectedJob(jobId);
+  }, [jobId]);
   const jobDraws = job?.draws || [];
   const currentDraw = jobDraws[jobDraws.length - 1];
 
@@ -106,7 +111,11 @@ export default function InvoicesView() {
     setSaved(false);
     try {
       const base64 = await fileToBase64(file);
-      const invoices = await extractInvoices(base64);
+      const isZip =
+        file.name.toLowerCase().endsWith(".zip") ||
+        file.type === "application/zip" ||
+        file.type === "application/x-zip-compressed";
+      const { invoices } = await extractInvoices(base64, isZip ? "zip" : "pdf");
       const normalized = invoices.map((inv) => ({
         ...inv,
         tradeCategory: mapTrade(inv.tradeCategory),
@@ -215,22 +224,24 @@ export default function InvoicesView() {
 
   return (
     <div className="max-w-[1400px] mx-auto">
-      <div className="inline-flex items-center gap-1 mb-6 p-1 rounded-xl bg-chassis shadow-recessed">
-        {builds.map((j) => (
-          <PillTab
-            key={j.id}
-            active={selectedJob === j.id}
-            onClick={() => {
-              setSelectedJob(j.id);
-              setExtracted(null);
-              setError(null);
-              setSaved(false);
-            }}
-          >
-            {j.shortName}
-          </PillTab>
-        ))}
-      </div>
+      {!jobId && (
+        <div className="inline-flex items-center gap-1 mb-6 p-1 rounded-xl bg-chassis shadow-recessed">
+          {builds.map((j) => (
+            <PillTab
+              key={j.id}
+              active={selectedJob === j.id}
+              onClick={() => {
+                setSelectedJob(j.id);
+                setExtracted(null);
+                setError(null);
+                setSaved(false);
+              }}
+            >
+              {j.shortName}
+            </PillTab>
+          ))}
+        </div>
+      )}
 
       <div className="grid-2-sidebar">
         <div>
@@ -238,7 +249,7 @@ export default function InvoicesView() {
           <input
             ref={fileRef}
             type="file"
-            accept="application/pdf"
+            accept="application/pdf,application/zip,application/x-zip-compressed,.pdf,.zip"
             className="hidden"
             onChange={handleFileSelect}
           />
@@ -280,10 +291,10 @@ export default function InvoicesView() {
                   />
                 </div>
                 <div className="text-[14px] font-bold text-ink emboss mb-1">
-                  Upload Invoice Batch PDF
+                  Upload Invoice Batch (PDF or ZIP)
                 </div>
                 <div className="text-[11px] font-mono text-label mb-4">
-                  Drag & drop or click — multi-page supported
+                  Drag & drop a single PDF or a ZIP of PDFs
                 </div>
                 <Button variant="primary" size="md">
                   <FileText className="h-3.5 w-3.5 mr-2" /> Select File

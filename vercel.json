@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/ljld-generate.js": {
+      "includeFiles": "api/templates/**"
+    }
+  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }

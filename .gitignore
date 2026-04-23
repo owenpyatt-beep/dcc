@@ -4,5 +4,6 @@ build/
 .DS_Store
 *.csv
 *.xlsx
+!api/templates/*.xlsx
 drive-download-*/
 .vercel

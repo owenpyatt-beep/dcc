@@ -24,6 +24,7 @@ import { isInternalGC } from "../utils/vendors";
 import { Button } from "./ui/Button";
 import { Stamp } from "./ui/Typography";
 import { LED } from "./ui/LED";
+import InvoicesView from "./InvoicesView";
 
 function InternalGCChip() {
   return (
@@ -238,6 +239,34 @@ export default function DrawsView({ selectedId }) {
           </span>
         </div>
       )}
+
+      {/* Build a Draw Package — invoice ingestion for current draw */}
+      <section className="mb-10">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chassis shadow-recessed-sm">
+            <LED color="accent" size={8} pulse />
+          </div>
+          <div>
+            <Stamp className="text-[11px]">Build a Draw Package</Stamp>
+            <div className="text-[10px] font-mono text-label/70 mt-0.5">
+              Upload invoices · auto-extract · review · save to draw
+            </div>
+          </div>
+          <div className="flex-1 h-px bg-[rgba(74,85,104,0.08)]" />
+        </div>
+        <InvoicesView jobId={job.id} />
+      </section>
+
+      {/* Draw History section header */}
+      <section>
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-chassis shadow-recessed-sm">
+            <LayoutList className="h-3.5 w-3.5 text-accent" strokeWidth={2} />
+          </div>
+          <Stamp className="text-[11px]">Draw History</Stamp>
+          <div className="flex-1 h-px bg-[rgba(74,85,104,0.08)]" />
+        </div>
+      </section>
 
       {/* Build financials — 5 gauges */}
       <div className="grid-5 mb-6">

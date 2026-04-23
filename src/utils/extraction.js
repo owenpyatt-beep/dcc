@@ -4,10 +4,11 @@
 import { authFetch } from "./supabase";
 import { mapTrade } from "./tradeMap";
 
-export async function extractInvoices(base64Pdf) {
+export async function extractInvoices(base64, kind = "pdf") {
+  const body = kind === "zip" ? { zip: base64 } : { pdf: base64 };
   const res = await authFetch("/api/extract", {
     method: "POST",
-    body: JSON.stringify({ pdf: base64Pdf }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -15,11 +16,12 @@ export async function extractInvoices(base64Pdf) {
     throw new Error(err.error || `Extraction failed (${res.status})`);
   }
 
-  const { invoices } = await res.json();
-  return invoices.map((inv) => ({
+  const { invoices, meta } = await res.json();
+  const normalized = invoices.map((inv) => ({
     ...inv,
     tradeCategory: mapTrade(inv.tradeCategory),
   }));
+  return { invoices: normalized, meta };
 }
 
 export function fileToBase64(file) {
