@@ -6,13 +6,29 @@
 // Returns the xlsx as a binary attachment.
 
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import ExcelJS from "exceljs";
 import { supabaseAdmin } from "./_supabase.js";
 import { verifyAuth } from "./_auth.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TEMPLATE_PATH = path.join(__dirname, "templates", "ljld-invoice.xlsx");
+// Resolve the template path from several candidate locations so we work under
+// both local dev (`__dirname`-relative) and Vercel's bundled runtime (where
+// includeFiles puts the file under the function's working directory).
+function resolveTemplatePath() {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    path.join(here, "templates", "ljld-invoice.xlsx"),
+    path.join(process.cwd(), "api", "templates", "ljld-invoice.xlsx"),
+    path.join(process.cwd(), "templates", "ljld-invoice.xlsx"),
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  throw new Error(
+    `Template not found. Tried: ${candidates.join(" | ")}`
+  );
+}
 
 // How many line-item rows exist in the template (B10:D28 → rows 11-28).
 const MAX_TEMPLATE_ROWS = 18;
@@ -64,9 +80,12 @@ export default async function handler(req, res) {
     const other = parseFloat(ljldInvoice.other) || 0;
     const total = subtotal * (1 + taxRate) + other;
 
-    // Load the template
+    // Load the template — read as buffer so the underlying path lookup is
+    // explicit, and we fail with a useful error if the file isn't bundled.
+    const templatePath = resolveTemplatePath();
+    const templateBuffer = fs.readFileSync(templatePath);
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(TEMPLATE_PATH);
+    await workbook.xlsx.load(templateBuffer);
     const sheet = workbook.worksheets[0];
 
     // Header fields
